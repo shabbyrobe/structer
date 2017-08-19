@@ -17,12 +17,13 @@ any reports of other use cases that could be supported would be great!
 The core of structer is the ``TypePackageSet``, which allows you to import
 complete packages and their ASTs::
 
-	tpset := structer.NewTypePackageSet()
+    tpset := structer.NewTypePackageSet()
     pkg, err := tpset.Import("path/to/pkg")
 
 You can then recursively walk type definitions (importing external defs as you
 like by calling back to ``TypePackageSet``) in order to generate code. Either
-fully implement ``structer.TypeVisitor`` yourself, or just part of it like so::
+fully implement ``structer.TypeVisitor`` yourself, or just part of it using
+``structer.PartialTypeVisitor``::
 
     ppv := &structer.PartialTypeVisitor{
         EnterStructFunc: func(s s structer.StructInfo) error {
@@ -69,5 +70,5 @@ Known limitations
 - Not enough tests yet
 - Poor documentation
 - ``TypeVisitor`` should possibly have  ``EnterMap`` and ``LeaveMap``.
-  ``EnterMapKey`` and ``LeaveMapValue`` may be sufficient, but less clear.
+  ``EnterMapKey`` and ``LeaveMapValue`` may be sufficient, but they're less clear.
 

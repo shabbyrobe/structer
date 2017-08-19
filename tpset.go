@@ -228,6 +228,7 @@ func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.Import
 		pkg, err = t.TypesConfig.Check(importPath, t.ASTPackages.FileSet, asts, &info)
 		if err != nil {
 			wlog(t.Log, LogTypeSet, LogTypeCheck, err.Error())
+			err = nil
 		}
 
 		t.indexTypes(importPath, info.Defs)
