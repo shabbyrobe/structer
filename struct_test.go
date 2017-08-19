@@ -40,10 +40,18 @@ type TestingStruct struct {
 }
 
 var fieldResults = map[string][]TestingVisitorEvent{
-	"Basic":        []TestingVisitorEvent{{Depth: 2, Kind: "VisitBasic", Name: "string"}},
-	"BasicPointer": []TestingVisitorEvent{{Depth: 2, Kind: "VisitBasic", Name: "string"}},
-	"Circular":     []TestingVisitorEvent{{Depth: 2, Kind: "VisitNamed", Name: "k3jw.com/structer.TestingStruct"}},
+	"Basic": []TestingVisitorEvent{{Depth: 2, Kind: "VisitBasic", Name: "string"}},
+	"Circular": []TestingVisitorEvent{
+		{Depth: 2, Kind: "EnterPointer", Name: "*k3jw.com/structer.TestingStruct"},
+		{Depth: 3, Kind: "VisitNamed", Name: "k3jw.com/structer.TestingStruct"},
+		{Depth: 2, Kind: "LeavePointer", Name: "*k3jw.com/structer.TestingStruct"},
+	},
 
+	"BasicPointer": []TestingVisitorEvent{
+		{Depth: 2, Kind: "EnterPointer", Name: "*string"},
+		{Depth: 3, Kind: "VisitBasic", Name: "string"},
+		{Depth: 2, Kind: "LeavePointer", Name: "*string"},
+	},
 	"BasicSlice": []TestingVisitorEvent{
 		{Depth: 2, Kind: "EnterSlice", Name: "[]int"},
 		{Depth: 3, Kind: "VisitBasic", Name: "int"},
@@ -332,6 +340,17 @@ func (tv *TestingVisitor) EnterSlice(ft *types.Slice) error {
 func (tv *TestingVisitor) LeaveSlice(ft *types.Slice) error {
 	tv.Depth--
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "LeaveSlice", Name: ft.String(), Depth: tv.Depth})
+	return nil
+}
+
+func (tv *TestingVisitor) EnterPointer(ft *types.Pointer) error {
+	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "EnterPointer", Name: ft.String(), Depth: tv.Depth})
+	tv.Depth++
+	return nil
+}
+func (tv *TestingVisitor) LeavePointer(ft *types.Pointer) error {
+	tv.Depth--
+	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "LeavePointer", Name: ft.String(), Depth: tv.Depth})
 	return nil
 }
 

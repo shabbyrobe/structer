@@ -48,6 +48,9 @@ type TypeVisitor interface {
 	EnterMapElem(ft *types.Map, elem types.Type) error
 	LeaveMapElem(ft *types.Map, elem types.Type) error
 
+	EnterPointer(ft *types.Pointer) error
+	LeavePointer(ft *types.Pointer) error
+
 	EnterSlice(ft *types.Slice) error
 	LeaveSlice(ft *types.Slice) error
 
@@ -74,6 +77,9 @@ type PartialTypeVisitor struct {
 
 	EnterMapElemFunc func(ft *types.Map, elem types.Type) error
 	LeaveMapElemFunc func(ft *types.Map, elem types.Type) error
+
+	EnterPointerFunc func(ft *types.Pointer) error
+	LeavePointerFunc func(ft *types.Pointer) error
 
 	EnterSliceFunc func(t *types.Slice) error
 	LeaveSliceFunc func(t *types.Slice) error
@@ -137,6 +143,20 @@ func (p *PartialTypeVisitor) EnterMapElem(ft *types.Map, elem types.Type) error 
 func (p *PartialTypeVisitor) LeaveMapElem(ft *types.Map, elem types.Type) error {
 	if p.LeaveMapElemFunc != nil {
 		return p.LeaveMapElemFunc(ft, elem)
+	}
+	return nil
+}
+
+func (p *PartialTypeVisitor) EnterPointer(t *types.Pointer) error {
+	if p.EnterPointerFunc != nil {
+		return p.EnterPointer(t)
+	}
+	return nil
+}
+
+func (p *PartialTypeVisitor) LeavePointer(t *types.Pointer) error {
+	if p.LeavePointerFunc != nil {
+		return p.LeavePointer(t)
 	}
 	return nil
 }
@@ -265,6 +285,24 @@ func (p *MultiVisitor) LeaveMapElem(ft *types.Map, elem types.Type) error {
 	return nil
 }
 
+func (p *MultiVisitor) EnterPointer(t *types.Pointer) error {
+	for _, v := range p.Visitors {
+		if err := v.EnterPointer(t); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *MultiVisitor) LeavePointer(t *types.Pointer) error {
+	for _, v := range p.Visitors {
+		if err := v.LeavePointer(t); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *MultiVisitor) EnterSlice(t *types.Slice) error {
 	for _, v := range p.Visitors {
 		if err := v.EnterSlice(t); err != nil {
@@ -335,8 +373,7 @@ func walk(pkg, name string, root TypeName, ft types.Type, visitor TypeVisitor) e
 		return walkArray(pkg, name, root, ft, visitor)
 
 	case *types.Pointer:
-		// FIXME: should EnterPointer, LeavePointer.
-		return walk(pkg, ft.Elem().String(), root, ft.Elem(), visitor)
+		return walkPointer(pkg, name, root, ft, visitor)
 
 	case *types.Named:
 		return visitor.VisitNamed(ft)
@@ -360,6 +397,22 @@ func walkSlice(pkg, name string, root TypeName, ft *types.Slice, visitor TypeVis
 		return err
 	}
 	if err := visitor.LeaveSlice(ft); err != nil {
+		return err
+	}
+	return nil
+}
+
+func walkPointer(pkg, name string, root TypeName, ft *types.Pointer, visitor TypeVisitor) error {
+	err := visitor.EnterPointer(ft)
+	if err == WalkOver {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if err := walk(pkg, ft.Elem().String(), root, ft.Elem(), visitor); err != nil {
+		return err
+	}
+	if err := visitor.LeavePointer(ft); err != nil {
 		return err
 	}
 	return nil

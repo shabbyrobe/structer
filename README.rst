@@ -68,5 +68,6 @@ Known limitations
 - API is very unstable
 - Not enough tests yet
 - Poor documentation
-- ``TypeVisitor`` should have ``EnterPointer`` and ``LeavePointer``
+- ``TypeVisitor`` should possibly have  ``EnterMap`` and ``LeaveMap``.
+  ``EnterMapKey`` and ``LeaveMapValue`` may be sufficient, but less clear.
 
