@@ -9,3 +9,9 @@ coverhtml: cover
 
 test:
 	go test -v .
+
+get:
+	go get ./...
+
+travis: get build test
+

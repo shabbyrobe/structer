@@ -25,6 +25,14 @@ type Config struct {
 	IncludeTests bool
 }
 
+type option func(*TypePackageSet)
+
+func CaptureErrors(h func(error)) option {
+	return func(t *TypePackageSet) {
+		t.TypesConfig.Error = h
+	}
+}
+
 // TypePackageSet collects information about the types in all of the
 // imported packages.
 //
@@ -46,10 +54,20 @@ type TypePackageSet struct {
 	Objects     map[TypeName]types.Object
 	Kinds       map[string]PackageKind
 
+	// According to the types.Error documentation: "A "soft" error is an error
+	// that still permits a valid interpretation of a package (such as 'unused
+	// variable'); "hard" errors may lead to unpredictable
+	// behavior if ignored."
+	//
+	// This defaults to "true" as types considers certain errors that are likelier
+	// to be present before a code generation step as "hard" errors. Set this to
+	// false to fail on hard errors too.
+	AllowHardTypesError bool
+
 	Log Log
 }
 
-func NewTypePackageSet() *TypePackageSet {
+func NewTypePackageSet(opts ...option) *TypePackageSet {
 	tps := &TypePackageSet{
 		ASTPackages:     NewASTPackageSet(),
 		TypePackages:    make(map[string]*types.Package),
@@ -59,12 +77,16 @@ func NewTypePackageSet() *TypePackageSet {
 		Objects:         make(map[TypeName]types.Object),
 		Kinds:           make(map[string]PackageKind),
 	}
+	tps.AllowHardTypesError = true
 	tps.TypesConfig.IgnoreFuncBodies = true
 	tps.TypesConfig.DisableUnusedImportCheck = true
 	tps.TypesConfig.Error = func(err error) {
 		wlog(tps.Log, LogTypeSet, LogTypesConfigError, err.Error())
 	}
 	tps.TypesConfig.Importer = tps
+	for _, o := range opts {
+		o(tps)
+	}
 	return tps
 }
 
@@ -226,9 +248,19 @@ func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.Import
 		}
 
 		pkg, err = t.TypesConfig.Check(importPath, t.ASTPackages.FileSet, asts, &info)
+		raise := true
 		if err != nil {
+			if terr, ok := err.(types.Error); ok {
+				if terr.Soft || t.AllowHardTypesError {
+					raise = false
+				}
+			}
+		}
+		if !raise {
 			wlog(t.Log, LogTypeSet, LogTypeCheck, err.Error())
 			err = nil
+		} else {
+			return nil, err
 		}
 
 		t.indexTypes(importPath, info.Defs)
