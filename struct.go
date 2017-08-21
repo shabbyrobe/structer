@@ -466,7 +466,7 @@ func walkMap(pkg, name string, root TypeName, ft *types.Map, visitor TypeVisitor
 }
 
 func walkStruct(pkg, name string, root TypeName, ft *types.Struct, visitor TypeVisitor) error {
-	sinfo := StructInfo{Package: pkg, Name: name, Root: root}
+	sinfo := StructInfo{Package: pkg, Name: name, Root: root, Struct: ft}
 
 	err := visitor.EnterStruct(sinfo)
 	if err == WalkOver {

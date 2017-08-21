@@ -255,12 +255,12 @@ func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.Import
 					raise = false
 				}
 			}
-		}
-		if !raise {
-			wlog(t.Log, LogTypeSet, LogTypeCheck, err.Error())
-			err = nil
-		} else {
-			return nil, err
+			if !raise {
+				wlog(t.Log, LogTypeSet, LogTypeCheck, err.Error())
+				err = nil
+			} else {
+				return nil, err
+			}
 		}
 
 		t.indexTypes(importPath, info.Defs)
