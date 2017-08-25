@@ -42,9 +42,9 @@ type TestingStruct struct {
 var fieldResults = map[string][]TestingVisitorEvent{
 	"Basic": []TestingVisitorEvent{{Depth: 2, Kind: "VisitBasic", Name: "string"}},
 	"Circular": []TestingVisitorEvent{
-		{Depth: 2, Kind: "EnterPointer", Name: "*k3jw.com/structer.TestingStruct"},
-		{Depth: 3, Kind: "VisitNamed", Name: "k3jw.com/structer.TestingStruct"},
-		{Depth: 2, Kind: "LeavePointer", Name: "*k3jw.com/structer.TestingStruct"},
+		{Depth: 2, Kind: "EnterPointer", Name: "*github.com/shabbyrobe/structer.TestingStruct"},
+		{Depth: 3, Kind: "VisitNamed", Name: "github.com/shabbyrobe/structer.TestingStruct"},
+		{Depth: 2, Kind: "LeavePointer", Name: "*github.com/shabbyrobe/structer.TestingStruct"},
 	},
 
 	"BasicPointer": []TestingVisitorEvent{
@@ -218,14 +218,14 @@ var fieldResults = map[string][]TestingVisitorEvent{
 func TestStruct(t *testing.T) {
 	tpset := NewTypePackageSet()
 	tpset.Config.IncludeTests = true
-	_, err := tpset.Import("k3jw.com/structer")
+	_, err := tpset.Import("github.com/shabbyrobe/structer")
 	if err != nil {
 		t.Fail()
 		return
 	}
 
 	// How nice of you to leave this lying around!
-	tn, _ := ParseTypeName("k3jw.com/structer.TestingStruct")
+	tn, _ := ParseTypeName("github.com/shabbyrobe/structer.TestingStruct")
 	ts := tpset.Objects[tn]
 	if ts == nil {
 		t.Fail()
