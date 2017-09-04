@@ -3,6 +3,7 @@ package structer
 import (
 	"go/ast"
 	"go/build"
+	"go/constant"
 	"go/importer"
 	"go/types"
 	"os"
@@ -145,6 +146,33 @@ func (t *TypePackageSet) ExtractSource(name TypeName) ([]byte, error) {
 	}
 
 	return contents[pos:end], nil
+}
+
+// ExtractEnum extracts all constants that satisfy the supplied type from
+// the same package.
+func (t *TypePackageSet) ExtractEnum(name TypeName) (*Enum, error) {
+	def := t.Objects[name]
+	if def == nil {
+		return nil, errors.Errorf("could not find def for %s", name)
+	}
+
+	enum := &Enum{
+		Type:       name,
+		Underlying: extractTypeName(def.Type().Underlying()),
+		Values:     make(map[string]constant.Value),
+	}
+	for n, o := range t.Infos[name.PackagePath].Defs {
+		if o == nil {
+			continue
+		}
+		if !name.IsType(o.Type()) {
+			continue
+		}
+		if cns, ok := o.(*types.Const); ok {
+			enum.Values[n.String()] = cns.Val()
+		}
+	}
+	return enum, nil
 }
 
 func (t *TypePackageSet) ResolvePath(path, srcDir string) (PackageKind, string, error) {

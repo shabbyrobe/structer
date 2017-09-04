@@ -1,6 +1,7 @@
 package structer
 
 import (
+	"go/types"
 	"path/filepath"
 	"strings"
 
@@ -22,6 +23,13 @@ func (t TypeName) String() string {
 	} else {
 		return t.Full
 	}
+}
+
+func (t TypeName) IsType(typ types.Type) bool {
+	if typ == nil {
+		return false
+	}
+	return t.String() == typ.String()
 }
 
 func (t TypeName) ImportName(rel string, importName bool) string {
@@ -48,6 +56,18 @@ func NewTypeName(pkgPath string, name string) TypeName {
 		PackageName: filepath.Base(pkgPath),
 		Full:        pkgPath + "." + name,
 		Name:        name,
+	}
+}
+
+// FIXME: this is kinda crappy
+func extractTypeName(t types.Type) TypeName {
+	name := t.String()
+	last := strings.LastIndex(name, ".")
+	if last < 0 {
+		return NewBuiltinType(name)
+	} else {
+		t, _ := ParseTypeName(name)
+		return t
 	}
 }
 
