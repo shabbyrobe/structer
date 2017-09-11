@@ -30,13 +30,14 @@ func assertEnumInts(t *testing.T, expected map[string]int64, enum *Enum) {
 	}
 }
 
-func extractEnum(t *testing.T, tn TypeName) *Enum {
+func extractEnum(t *testing.T, tn TypeName, unexported bool) *Enum {
+	t.Helper()
 	tpset := NewTypePackageSet()
 	_, err := tpset.Import(tn.PackagePath)
 	if err != nil {
 		t.Errorf("expected no error, found %v", err)
 	}
-	enum, err := tpset.ExtractEnum(tn)
+	enum, err := tpset.ExtractEnum(tn, unexported)
 	if err != nil {
 		t.Fatalf("expected no error, found %v", err)
 	}
@@ -45,16 +46,28 @@ func extractEnum(t *testing.T, tn TypeName) *Enum {
 
 func TestExtractEnumString(t *testing.T) {
 	tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/enum", "TestString")
-	enum := extractEnum(t, tn)
+	enum := extractEnum(t, tn, false)
 	if enum.Underlying.String() != "string" {
 		t.Errorf("underlying type should be int")
 	}
 	assertEnumStrings(t, map[string]string{"TestString1": "foo", "TestString2": "bar", "TestString3": "baz", "TestString4": "qux"}, enum)
 }
 
+func TestExtractEnumStringUnexported(t *testing.T) {
+	tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/enum", "TestString")
+	enum := extractEnum(t, tn, true)
+	if enum.Underlying.String() != "string" {
+		t.Errorf("underlying type should be int")
+	}
+	assertEnumStrings(t, map[string]string{
+		"TestString1": "foo", "TestString2": "bar", "TestString3": "baz", "TestString4": "qux",
+		"testString5": "nup",
+	}, enum)
+}
+
 func TestExtractEnumInt(t *testing.T) {
 	tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/enum", "TestInt")
-	enum := extractEnum(t, tn)
+	enum := extractEnum(t, tn, false)
 	if enum.Underlying.String() != "int" {
 		t.Errorf("underlying type should be int")
 	}
@@ -63,7 +76,7 @@ func TestExtractEnumInt(t *testing.T) {
 
 func TestExtractEnumIntNested(t *testing.T) {
 	tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/enum", "TestIntNest")
-	enum := extractEnum(t, tn)
+	enum := extractEnum(t, tn, false)
 	if enum.Underlying.String() != "int" {
 		t.Errorf("underlying type should be int")
 	}
@@ -72,7 +85,7 @@ func TestExtractEnumIntNested(t *testing.T) {
 
 func TestExtractEnumIota(t *testing.T) {
 	tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/enum", "TestIota")
-	enum := extractEnum(t, tn)
+	enum := extractEnum(t, tn, false)
 	if enum.Underlying.String() != "int" {
 		t.Errorf("underlying type should be int")
 	}

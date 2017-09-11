@@ -150,7 +150,7 @@ func (t *TypePackageSet) ExtractSource(name TypeName) ([]byte, error) {
 
 // ExtractEnum extracts all constants that satisfy the supplied type from
 // the same package.
-func (t *TypePackageSet) ExtractEnum(name TypeName) (*Enum, error) {
+func (t *TypePackageSet) ExtractEnum(name TypeName, includeUnexported bool) (*Enum, error) {
 	def := t.Objects[name]
 	if def == nil {
 		return nil, errors.Errorf("could not find def for %s", name)
@@ -166,6 +166,9 @@ func (t *TypePackageSet) ExtractEnum(name TypeName) (*Enum, error) {
 			continue
 		}
 		if !name.IsType(o.Type()) {
+			continue
+		}
+		if !includeUnexported && !n.IsExported() {
 			continue
 		}
 		if cns, ok := o.(*types.Const); ok {

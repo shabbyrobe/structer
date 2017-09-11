@@ -10,6 +10,7 @@ const (
 const (
 	TestString3 TestString = "baz"
 	TestString4 TestString = "qux"
+	testString5 TestString = "nup"
 )
 
 type UsesEnumString struct {
