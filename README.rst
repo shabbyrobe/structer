@@ -4,6 +4,8 @@ Structer
 Structer is a tool for dismantling struct definitions to try to ease the agony
 of code generation.
 
+Structer requires Go 1.9.
+
 It ties together `go/types <https://godoc.org/go/types>`_ and `go/ast
 <https://godoc.org/go/ast>`_ to try to simplify recursively walking through a
 type declaration, importing relevant pacakges and extracting required code.
