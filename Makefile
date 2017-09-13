@@ -11,7 +11,7 @@ test:
 	go test -v .
 
 get:
-	go get ./...
+	go get .
 
 travis: get build test
 
