@@ -32,33 +32,34 @@ var (
 // struct and respond dynamically to the types therein.
 //
 func Walk(tn TypeName, t types.Type, visitor TypeVisitor) error {
-	return walk(tn.PackagePath, tn.Name, tn, t, visitor)
+	ctx := &walkContext{visitor: visitor}
+	return ctx.walk(tn.PackagePath, tn.Name, tn, t)
 }
 
 type TypeVisitor interface {
-	EnterStruct(StructInfo) error
-	LeaveStruct(StructInfo) error
+	EnterStruct(WalkContext, StructInfo) error
+	LeaveStruct(WalkContext, StructInfo) error
 
-	EnterField(s StructInfo, field *types.Var, tag string) error
-	LeaveField(s StructInfo, field *types.Var, tag string) error
+	EnterField(ctx WalkContext, s StructInfo, field *types.Var, tag string) error
+	LeaveField(ctx WalkContext, s StructInfo, field *types.Var, tag string) error
 
-	EnterMapKey(ft *types.Map, key types.Type) error
-	LeaveMapKey(ft *types.Map, key types.Type) error
+	EnterMapKey(ctx WalkContext, ft *types.Map, key types.Type) error
+	LeaveMapKey(ctx WalkContext, ft *types.Map, key types.Type) error
 
-	EnterMapElem(ft *types.Map, elem types.Type) error
-	LeaveMapElem(ft *types.Map, elem types.Type) error
+	EnterMapElem(ctx WalkContext, ft *types.Map, elem types.Type) error
+	LeaveMapElem(ctx WalkContext, ft *types.Map, elem types.Type) error
 
-	EnterPointer(ft *types.Pointer) error
-	LeavePointer(ft *types.Pointer) error
+	EnterPointer(ctx WalkContext, ft *types.Pointer) error
+	LeavePointer(ctx WalkContext, ft *types.Pointer) error
 
-	EnterSlice(ft *types.Slice) error
-	LeaveSlice(ft *types.Slice) error
+	EnterSlice(ctx WalkContext, ft *types.Slice) error
+	LeaveSlice(ctx WalkContext, ft *types.Slice) error
 
-	EnterArray(ft *types.Array) error
-	LeaveArray(ft *types.Array) error
+	EnterArray(ctx WalkContext, ft *types.Array) error
+	LeaveArray(ctx WalkContext, ft *types.Array) error
 
-	VisitBasic(t *types.Basic) error
-	VisitNamed(t *types.Named) error
+	VisitBasic(ctx WalkContext, t *types.Basic) error
+	VisitNamed(ctx WalkContext, t *types.Named) error
 }
 
 // PartialTypeVisitor allows you to conveniently construct a visitor using
@@ -66,139 +67,139 @@ type TypeVisitor interface {
 // interface.
 //
 type PartialTypeVisitor struct {
-	EnterStructFunc func(StructInfo) error
-	LeaveStructFunc func(StructInfo) error
+	EnterStructFunc func(WalkContext, StructInfo) error
+	LeaveStructFunc func(WalkContext, StructInfo) error
 
-	EnterFieldFunc func(s StructInfo, field *types.Var, tag string) error
-	LeaveFieldFunc func(s StructInfo, field *types.Var, tag string) error
+	EnterFieldFunc func(ctx WalkContext, s StructInfo, field *types.Var, tag string) error
+	LeaveFieldFunc func(ctx WalkContext, s StructInfo, field *types.Var, tag string) error
 
-	EnterMapKeyFunc func(ft *types.Map, key types.Type) error
-	LeaveMapKeyFunc func(ft *types.Map, key types.Type) error
+	EnterMapKeyFunc func(ctx WalkContext, ft *types.Map, key types.Type) error
+	LeaveMapKeyFunc func(ctx WalkContext, ft *types.Map, key types.Type) error
 
-	EnterMapElemFunc func(ft *types.Map, elem types.Type) error
-	LeaveMapElemFunc func(ft *types.Map, elem types.Type) error
+	EnterMapElemFunc func(ctx WalkContext, ft *types.Map, elem types.Type) error
+	LeaveMapElemFunc func(ctx WalkContext, ft *types.Map, elem types.Type) error
 
-	EnterPointerFunc func(ft *types.Pointer) error
-	LeavePointerFunc func(ft *types.Pointer) error
+	EnterPointerFunc func(ctx WalkContext, ft *types.Pointer) error
+	LeavePointerFunc func(ctx WalkContext, ft *types.Pointer) error
 
-	EnterSliceFunc func(t *types.Slice) error
-	LeaveSliceFunc func(t *types.Slice) error
+	EnterSliceFunc func(ctx WalkContext, t *types.Slice) error
+	LeaveSliceFunc func(ctx WalkContext, t *types.Slice) error
 
-	EnterArrayFunc func(t *types.Array) error
-	LeaveArrayFunc func(t *types.Array) error
+	EnterArrayFunc func(ctx WalkContext, t *types.Array) error
+	LeaveArrayFunc func(ctx WalkContext, t *types.Array) error
 
-	VisitBasicFunc func(t *types.Basic) error
-	VisitNamedFunc func(t *types.Named) error
+	VisitBasicFunc func(ctx WalkContext, t *types.Basic) error
+	VisitNamedFunc func(ctx WalkContext, t *types.Named) error
 }
 
-func (p *PartialTypeVisitor) EnterStruct(s StructInfo) error {
+func (p *PartialTypeVisitor) EnterStruct(ctx WalkContext, s StructInfo) error {
 	if p.EnterStructFunc != nil {
-		return p.EnterStructFunc(s)
+		return p.EnterStructFunc(ctx, s)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) LeaveStruct(s StructInfo) error {
+func (p *PartialTypeVisitor) LeaveStruct(ctx WalkContext, s StructInfo) error {
 	if p.LeaveStructFunc != nil {
-		return p.LeaveStructFunc(s)
+		return p.LeaveStructFunc(ctx, s)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) EnterField(s StructInfo, field *types.Var, tag string) error {
+func (p *PartialTypeVisitor) EnterField(ctx WalkContext, s StructInfo, field *types.Var, tag string) error {
 	if p.EnterFieldFunc != nil {
-		return p.EnterFieldFunc(s, field, tag)
+		return p.EnterFieldFunc(ctx, s, field, tag)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) LeaveField(s StructInfo, field *types.Var, tag string) error {
+func (p *PartialTypeVisitor) LeaveField(ctx WalkContext, s StructInfo, field *types.Var, tag string) error {
 	if p.LeaveFieldFunc != nil {
-		return p.LeaveFieldFunc(s, field, tag)
+		return p.LeaveFieldFunc(ctx, s, field, tag)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) EnterMapKey(ft *types.Map, key types.Type) error {
+func (p *PartialTypeVisitor) EnterMapKey(ctx WalkContext, ft *types.Map, key types.Type) error {
 	if p.EnterMapKeyFunc != nil {
-		return p.EnterMapKeyFunc(ft, key)
+		return p.EnterMapKeyFunc(ctx, ft, key)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) LeaveMapKey(ft *types.Map, key types.Type) error {
+func (p *PartialTypeVisitor) LeaveMapKey(ctx WalkContext, ft *types.Map, key types.Type) error {
 	if p.LeaveMapKeyFunc != nil {
-		return p.LeaveMapKeyFunc(ft, key)
+		return p.LeaveMapKeyFunc(ctx, ft, key)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) EnterMapElem(ft *types.Map, elem types.Type) error {
+func (p *PartialTypeVisitor) EnterMapElem(ctx WalkContext, ft *types.Map, elem types.Type) error {
 	if p.EnterMapElemFunc != nil {
-		return p.EnterMapElemFunc(ft, elem)
+		return p.EnterMapElemFunc(ctx, ft, elem)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) LeaveMapElem(ft *types.Map, elem types.Type) error {
+func (p *PartialTypeVisitor) LeaveMapElem(ctx WalkContext, ft *types.Map, elem types.Type) error {
 	if p.LeaveMapElemFunc != nil {
-		return p.LeaveMapElemFunc(ft, elem)
+		return p.LeaveMapElemFunc(ctx, ft, elem)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) EnterPointer(t *types.Pointer) error {
+func (p *PartialTypeVisitor) EnterPointer(ctx WalkContext, t *types.Pointer) error {
 	if p.EnterPointerFunc != nil {
-		return p.EnterPointer(t)
+		return p.EnterPointer(ctx, t)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) LeavePointer(t *types.Pointer) error {
+func (p *PartialTypeVisitor) LeavePointer(ctx WalkContext, t *types.Pointer) error {
 	if p.LeavePointerFunc != nil {
-		return p.LeavePointer(t)
+		return p.LeavePointer(ctx, t)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) EnterSlice(t *types.Slice) error {
+func (p *PartialTypeVisitor) EnterSlice(ctx WalkContext, t *types.Slice) error {
 	if p.EnterSliceFunc != nil {
-		return p.EnterSliceFunc(t)
+		return p.EnterSliceFunc(ctx, t)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) LeaveSlice(t *types.Slice) error {
+func (p *PartialTypeVisitor) LeaveSlice(ctx WalkContext, t *types.Slice) error {
 	if p.LeaveSliceFunc != nil {
-		return p.LeaveSliceFunc(t)
+		return p.LeaveSliceFunc(ctx, t)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) EnterArray(t *types.Array) error {
+func (p *PartialTypeVisitor) EnterArray(ctx WalkContext, t *types.Array) error {
 	if p.EnterArrayFunc != nil {
-		return p.EnterArrayFunc(t)
+		return p.EnterArrayFunc(ctx, t)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) LeaveArray(t *types.Array) error {
+func (p *PartialTypeVisitor) LeaveArray(ctx WalkContext, t *types.Array) error {
 	if p.LeaveArrayFunc != nil {
-		return p.LeaveArrayFunc(t)
+		return p.LeaveArrayFunc(ctx, t)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) VisitBasic(t *types.Basic) error {
+func (p *PartialTypeVisitor) VisitBasic(ctx WalkContext, t *types.Basic) error {
 	if p.VisitBasicFunc != nil {
-		return p.VisitBasicFunc(t)
+		return p.VisitBasicFunc(ctx, t)
 	}
 	return nil
 }
 
-func (p *PartialTypeVisitor) VisitNamed(t *types.Named) error {
+func (p *PartialTypeVisitor) VisitNamed(ctx WalkContext, t *types.Named) error {
 	if p.VisitNamedFunc != nil {
-		return p.VisitNamedFunc(t)
+		return p.VisitNamedFunc(ctx, t)
 	}
 	return nil
 }
@@ -213,262 +214,312 @@ type MultiVisitor struct {
 	Visitors []TypeVisitor
 }
 
-func (p *MultiVisitor) EnterStruct(s StructInfo) error {
+func (p *MultiVisitor) EnterStruct(ctx WalkContext, s StructInfo) error {
 	for _, v := range p.Visitors {
-		if err := v.EnterStruct(s); err != nil {
+		if err := v.EnterStruct(ctx, s); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) LeaveStruct(s StructInfo) error {
+func (p *MultiVisitor) LeaveStruct(ctx WalkContext, s StructInfo) error {
 	for _, v := range p.Visitors {
-		if err := v.LeaveStruct(s); err != nil {
+		if err := v.LeaveStruct(ctx, s); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) EnterField(s StructInfo, field *types.Var, tag string) error {
+func (p *MultiVisitor) EnterField(ctx WalkContext, s StructInfo, field *types.Var, tag string) error {
 	for _, v := range p.Visitors {
-		if err := v.EnterField(s, field, tag); err != nil {
+		if err := v.EnterField(ctx, s, field, tag); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) LeaveField(s StructInfo, field *types.Var, tag string) error {
+func (p *MultiVisitor) LeaveField(ctx WalkContext, s StructInfo, field *types.Var, tag string) error {
 	for _, v := range p.Visitors {
-		if err := v.LeaveField(s, field, tag); err != nil {
+		if err := v.LeaveField(ctx, s, field, tag); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) EnterMapKey(ft *types.Map, key types.Type) error {
+func (p *MultiVisitor) EnterMapKey(ctx WalkContext, ft *types.Map, key types.Type) error {
 	for _, v := range p.Visitors {
-		if err := v.EnterMapKey(ft, key); err != nil {
+		if err := v.EnterMapKey(ctx, ft, key); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) LeaveMapKey(ft *types.Map, key types.Type) error {
+func (p *MultiVisitor) LeaveMapKey(ctx WalkContext, ft *types.Map, key types.Type) error {
 	for _, v := range p.Visitors {
-		if err := v.LeaveMapKey(ft, key); err != nil {
+		if err := v.LeaveMapKey(ctx, ft, key); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) EnterMapElem(ft *types.Map, elem types.Type) error {
+func (p *MultiVisitor) EnterMapElem(ctx WalkContext, ft *types.Map, elem types.Type) error {
 	for _, v := range p.Visitors {
-		if err := v.EnterMapElem(ft, elem); err != nil {
+		if err := v.EnterMapElem(ctx, ft, elem); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) LeaveMapElem(ft *types.Map, elem types.Type) error {
+func (p *MultiVisitor) LeaveMapElem(ctx WalkContext, ft *types.Map, elem types.Type) error {
 	for _, v := range p.Visitors {
-		if err := v.LeaveMapElem(ft, elem); err != nil {
+		if err := v.LeaveMapElem(ctx, ft, elem); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) EnterPointer(t *types.Pointer) error {
+func (p *MultiVisitor) EnterPointer(ctx WalkContext, t *types.Pointer) error {
 	for _, v := range p.Visitors {
-		if err := v.EnterPointer(t); err != nil {
+		if err := v.EnterPointer(ctx, t); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) LeavePointer(t *types.Pointer) error {
+func (p *MultiVisitor) LeavePointer(ctx WalkContext, t *types.Pointer) error {
 	for _, v := range p.Visitors {
-		if err := v.LeavePointer(t); err != nil {
+		if err := v.LeavePointer(ctx, t); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) EnterSlice(t *types.Slice) error {
+func (p *MultiVisitor) EnterSlice(ctx WalkContext, t *types.Slice) error {
 	for _, v := range p.Visitors {
-		if err := v.EnterSlice(t); err != nil {
+		if err := v.EnterSlice(ctx, t); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) LeaveSlice(t *types.Slice) error {
+func (p *MultiVisitor) LeaveSlice(ctx WalkContext, t *types.Slice) error {
 	for _, v := range p.Visitors {
-		if err := v.LeaveSlice(t); err != nil {
+		if err := v.LeaveSlice(ctx, t); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) EnterArray(t *types.Array) error {
+func (p *MultiVisitor) EnterArray(ctx WalkContext, t *types.Array) error {
 	for _, v := range p.Visitors {
-		if err := v.EnterArray(t); err != nil {
+		if err := v.EnterArray(ctx, t); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) LeaveArray(t *types.Array) error {
+func (p *MultiVisitor) LeaveArray(ctx WalkContext, t *types.Array) error {
 	for _, v := range p.Visitors {
-		if err := v.LeaveArray(t); err != nil {
+		if err := v.LeaveArray(ctx, t); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) VisitBasic(t *types.Basic) error {
+func (p *MultiVisitor) VisitBasic(ctx WalkContext, t *types.Basic) error {
 	for _, v := range p.Visitors {
-		if err := v.VisitBasic(t); err != nil {
+		if err := v.VisitBasic(ctx, t); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *MultiVisitor) VisitNamed(t *types.Named) error {
+func (p *MultiVisitor) VisitNamed(ctx WalkContext, t *types.Named) error {
 	for _, v := range p.Visitors {
-		if err := v.VisitNamed(t); err != nil {
+		if err := v.VisitNamed(ctx, t); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func walk(pkg, name string, root TypeName, ft types.Type, visitor TypeVisitor) error {
+type WalkContext interface {
+	Stack() []types.Type
+	Parent() types.Type
+}
+
+type walkContext struct {
+	stack   []types.Type
+	visitor TypeVisitor
+}
+
+func (ctx *walkContext) push(t types.Type) {
+	ctx.stack = append(ctx.stack, t)
+}
+
+func (ctx *walkContext) pop(t types.Type) {
+	ln := len(ctx.stack)
+	if ln == 1 {
+		ctx.stack = []types.Type{}
+	} else {
+		ctx.stack = ctx.stack[:ln-1]
+	}
+}
+
+func (ctx *walkContext) Parent() types.Type {
+	ln := len(ctx.stack)
+	if ln > 0 {
+		return ctx.stack[ln-1]
+	}
+	return nil
+}
+
+func (ctx *walkContext) Stack() []types.Type {
+	return ctx.stack
+}
+
+func (ctx *walkContext) walk(pkg, name string, root TypeName, ft types.Type) error {
 	switch ft := ft.(type) {
 	case *types.Struct:
 		// Descend into nested struct definitions (but not into named ones)
-		return walkStruct(pkg, name, root, ft, visitor)
+		return ctx.walkStruct(pkg, name, root, ft)
 
 	case *types.Map:
-		return walkMap(pkg, name, root, ft, visitor)
+		return ctx.walkMap(pkg, name, root, ft)
 
 	case *types.Slice:
-		return walkSlice(pkg, name, root, ft, visitor)
+		return ctx.walkSlice(pkg, name, root, ft)
 
 	case *types.Array:
-		return walkArray(pkg, name, root, ft, visitor)
+		return ctx.walkArray(pkg, name, root, ft)
 
 	case *types.Pointer:
-		return walkPointer(pkg, name, root, ft, visitor)
+		return ctx.walkPointer(pkg, name, root, ft)
 
 	case *types.Named:
-		return visitor.VisitNamed(ft)
+		return ctx.visitor.VisitNamed(ctx, ft)
 
 	case *types.Basic:
-		return visitor.VisitBasic(ft)
+		return ctx.visitor.VisitBasic(ctx, ft)
 
 	default:
 		panic(errors.Errorf("unhandled %T", ft))
 	}
 }
 
-func walkSlice(pkg, name string, root TypeName, ft *types.Slice, visitor TypeVisitor) error {
-	err := visitor.EnterSlice(ft)
+func (ctx *walkContext) walkSlice(pkg, name string, root TypeName, ft *types.Slice) error {
+	ctx.push(ft)
+	defer ctx.pop(ft)
+
+	err := ctx.visitor.EnterSlice(ctx, ft)
 	if err == WalkOver {
 		return nil
 	} else if err != nil {
 		return err
 	}
-	if err := walk(pkg, ft.Elem().String(), root, ft.Elem(), visitor); err != nil {
+	if err := ctx.walk(pkg, ft.Elem().String(), root, ft.Elem()); err != nil {
 		return err
 	}
-	if err := visitor.LeaveSlice(ft); err != nil {
+	if err := ctx.visitor.LeaveSlice(ctx, ft); err != nil {
 		return err
 	}
 	return nil
 }
 
-func walkPointer(pkg, name string, root TypeName, ft *types.Pointer, visitor TypeVisitor) error {
-	err := visitor.EnterPointer(ft)
+func (ctx *walkContext) walkPointer(pkg, name string, root TypeName, ft *types.Pointer) error {
+	ctx.push(ft)
+	defer ctx.pop(ft)
+
+	err := ctx.visitor.EnterPointer(ctx, ft)
 	if err == WalkOver {
 		return nil
 	} else if err != nil {
 		return err
 	}
-	if err := walk(pkg, ft.Elem().String(), root, ft.Elem(), visitor); err != nil {
+	if err := ctx.walk(pkg, ft.Elem().String(), root, ft.Elem()); err != nil {
 		return err
 	}
-	if err := visitor.LeavePointer(ft); err != nil {
+	if err := ctx.visitor.LeavePointer(ctx, ft); err != nil {
 		return err
 	}
 	return nil
 }
 
-func walkArray(pkg, name string, root TypeName, ft *types.Array, visitor TypeVisitor) error {
-	err := visitor.EnterArray(ft)
+func (ctx *walkContext) walkArray(pkg, name string, root TypeName, ft *types.Array) error {
+	ctx.push(ft)
+	defer ctx.pop(ft)
+
+	err := ctx.visitor.EnterArray(ctx, ft)
 	if err == WalkOver {
 		return nil
 	} else if err != nil {
 		return err
 	}
-	if err := walk(pkg, ft.Elem().String(), root, ft.Elem(), visitor); err != nil {
+	if err := ctx.walk(pkg, ft.Elem().String(), root, ft.Elem()); err != nil {
 		return err
 	}
-	if err := visitor.LeaveArray(ft); err != nil {
+	if err := ctx.visitor.LeaveArray(ctx, ft); err != nil {
 		return err
 	}
 	return nil
 }
 
-func walkMap(pkg, name string, root TypeName, ft *types.Map, visitor TypeVisitor) error {
+func (ctx *walkContext) walkMap(pkg, name string, root TypeName, ft *types.Map) error {
+	ctx.push(ft)
+	defer ctx.pop(ft)
+
 	var err error
 
-	err = visitor.EnterMapKey(ft, ft.Key())
+	err = ctx.visitor.EnterMapKey(ctx, ft, ft.Key())
 	if err != WalkOver && err != nil {
 		return err
 	}
 	if err != WalkOver {
-		if err := walk(pkg, ft.Key().String(), root, ft.Key(), visitor); err != nil {
+		if err := ctx.walk(pkg, ft.Key().String(), root, ft.Key()); err != nil {
 			return err
 		}
-		if err := visitor.LeaveMapKey(ft, ft.Key()); err != nil {
+		if err := ctx.visitor.LeaveMapKey(ctx, ft, ft.Key()); err != nil {
 			return err
 		}
 	}
 
-	err = visitor.EnterMapElem(ft, ft.Elem())
+	err = ctx.visitor.EnterMapElem(ctx, ft, ft.Elem())
 	if err != WalkOver && err != nil {
 		return err
 	}
 	if err != WalkOver {
-		if err := walk(pkg, ft.Elem().String(), root, ft.Elem(), visitor); err != nil {
+		if err := ctx.walk(pkg, ft.Elem().String(), root, ft.Elem()); err != nil {
 			return err
 		}
-		if err := visitor.LeaveMapElem(ft, ft.Elem()); err != nil {
+		if err := ctx.visitor.LeaveMapElem(ctx, ft, ft.Elem()); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func walkStruct(pkg, name string, root TypeName, ft *types.Struct, visitor TypeVisitor) error {
+func (ctx *walkContext) walkStruct(pkg, name string, root TypeName, ft *types.Struct) error {
+	ctx.push(ft)
+	defer ctx.pop(ft)
+
 	sinfo := StructInfo{Package: pkg, Name: name, Root: root, Struct: ft}
 
-	err := visitor.EnterStruct(sinfo)
+	err := ctx.visitor.EnterStruct(ctx, sinfo)
 	if err == WalkOver {
 		return nil
 	} else if err != nil {
@@ -479,7 +530,7 @@ func walkStruct(pkg, name string, root TypeName, ft *types.Struct, visitor TypeV
 		field := ft.Field(i)
 		tag := ft.Tag(i)
 
-		err = visitor.EnterField(sinfo, field, tag)
+		err = ctx.visitor.EnterField(ctx, sinfo, field, tag)
 		if err == WalkOver {
 			err = nil
 			continue
@@ -487,14 +538,14 @@ func walkStruct(pkg, name string, root TypeName, ft *types.Struct, visitor TypeV
 			return err
 		}
 
-		if err := walk(field.Pkg().Name(), field.Name(), root, field.Type(), visitor); err != nil {
+		if err := ctx.walk(field.Pkg().Name(), field.Name(), root, field.Type()); err != nil {
 			return err
 		}
-		if err := visitor.LeaveField(sinfo, field, tag); err != nil {
+		if err := ctx.visitor.LeaveField(ctx, sinfo, field, tag); err != nil {
 			return err
 		}
 	}
-	if err := visitor.LeaveStruct(sinfo); err != nil {
+	if err := ctx.visitor.LeaveStruct(ctx, sinfo); err != nil {
 		return err
 	}
 	return nil

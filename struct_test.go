@@ -7,6 +7,61 @@ import (
 	"testing"
 )
 
+type TestingStackStruct struct {
+	Foo []map[[3]int]struct {
+		Bar []map[[3]int]struct {
+			Baz string
+			Qux *TestingStackStruct
+		}
+	}
+	Bar string
+}
+
+func TestStructStack(t *testing.T) {
+	parents := []string{}
+	vis := &PartialTypeVisitor{
+		VisitBasicFunc: func(ctx WalkContext, t *types.Basic) error {
+			parents = append(parents, ctx.Parent().String())
+			return nil
+		},
+		VisitNamedFunc: func(ctx WalkContext, t *types.Named) error {
+			parents = append(parents, ctx.Parent().String())
+			return nil
+		},
+	}
+	_, tn, tst := getTestingStruct(t, "github.com/shabbyrobe/structer.TestingStackStruct")
+	Walk(tn, tst, vis)
+
+	expected := []string{
+		"[3]int",
+		"[3]int",
+		"struct{Baz string; Qux *github.com/shabbyrobe/structer.TestingStackStruct}",
+		"*github.com/shabbyrobe/structer.TestingStackStruct",
+		"struct{Foo []map[[3]int]struct{Bar []map[[3]int]struct{Baz string; Qux *github.com/shabbyrobe/structer.TestingStackStruct}}; Bar string}",
+	}
+	if !reflect.DeepEqual(expected, parents) {
+		t.Fail()
+	}
+}
+
+func getTestingStruct(t *testing.T, tns string) (tpset *TypePackageSet, tn TypeName, typ types.Type) {
+	tpset = NewTypePackageSet()
+	tpset.Config.IncludeTests = true
+	_, err := tpset.Import("github.com/shabbyrobe/structer")
+	if err != nil {
+		t.Fail()
+		return
+	}
+	tn, _ = ParseTypeName(tns)
+	ts := tpset.Objects[tn]
+	if ts == nil {
+		t.Fail()
+		return
+	}
+	typ = ts.Type().Underlying().(*types.Struct)
+	return
+}
+
 // TestStruct demonstrates all the different type combinations
 // I could think of before I got sick of writing vim macros to
 // generate test results.
@@ -277,14 +332,14 @@ type TestingVisitor struct {
 	Events      []TestingVisitorEvent
 }
 
-func (tv *TestingVisitor) EnterStruct(s StructInfo) error {
+func (tv *TestingVisitor) EnterStruct(ctx WalkContext, s StructInfo) error {
 	if tv.Depth > 0 {
 		tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "EnterStruct", Name: s.Name, Depth: tv.Depth})
 	}
 	tv.Depth++
 	return nil
 }
-func (tv *TestingVisitor) LeaveStruct(s StructInfo) error {
+func (tv *TestingVisitor) LeaveStruct(ctx WalkContext, s StructInfo) error {
 	tv.Depth--
 	if tv.Depth > 0 {
 		tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "LeaveStruct", Name: s.Name, Depth: tv.Depth})
@@ -292,14 +347,14 @@ func (tv *TestingVisitor) LeaveStruct(s StructInfo) error {
 	return nil
 }
 
-func (tv *TestingVisitor) EnterField(s StructInfo, field *types.Var, tag string) error {
+func (tv *TestingVisitor) EnterField(ctx WalkContext, s StructInfo, field *types.Var, tag string) error {
 	if tv.Depth > 1 {
 		tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "EnterField", Name: field.Name(), Depth: tv.Depth})
 	}
 	tv.Depth++
 	return nil
 }
-func (tv *TestingVisitor) LeaveField(s StructInfo, field *types.Var, tag string) error {
+func (tv *TestingVisitor) LeaveField(ctx WalkContext, s StructInfo, field *types.Var, tag string) error {
 	tv.Depth--
 	if tv.Depth > 1 {
 		tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "LeaveField", Name: field.Name(), Depth: tv.Depth})
@@ -310,66 +365,66 @@ func (tv *TestingVisitor) LeaveField(s StructInfo, field *types.Var, tag string)
 	return nil
 }
 
-func (tv *TestingVisitor) EnterMapKey(ft *types.Map, key types.Type) error {
+func (tv *TestingVisitor) EnterMapKey(ctx WalkContext, ft *types.Map, key types.Type) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "EnterMapKey", Name: ft.String(), Depth: tv.Depth})
 	tv.Depth++
 	return nil
 }
-func (tv *TestingVisitor) LeaveMapKey(ft *types.Map, key types.Type) error {
+func (tv *TestingVisitor) LeaveMapKey(ctx WalkContext, ft *types.Map, key types.Type) error {
 	tv.Depth--
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "LeaveMapKey", Name: ft.String(), Depth: tv.Depth})
 	return nil
 }
 
-func (tv *TestingVisitor) EnterMapElem(ft *types.Map, elem types.Type) error {
+func (tv *TestingVisitor) EnterMapElem(ctx WalkContext, ft *types.Map, elem types.Type) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "EnterMapElem", Name: ft.String(), Depth: tv.Depth})
 	tv.Depth++
 	return nil
 }
-func (tv *TestingVisitor) LeaveMapElem(ft *types.Map, elem types.Type) error {
+func (tv *TestingVisitor) LeaveMapElem(ctx WalkContext, ft *types.Map, elem types.Type) error {
 	tv.Depth--
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "LeaveMapElem", Name: ft.String(), Depth: tv.Depth})
 	return nil
 }
 
-func (tv *TestingVisitor) EnterSlice(ft *types.Slice) error {
+func (tv *TestingVisitor) EnterSlice(ctx WalkContext, ft *types.Slice) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "EnterSlice", Name: ft.String(), Depth: tv.Depth})
 	tv.Depth++
 	return nil
 }
-func (tv *TestingVisitor) LeaveSlice(ft *types.Slice) error {
+func (tv *TestingVisitor) LeaveSlice(ctx WalkContext, ft *types.Slice) error {
 	tv.Depth--
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "LeaveSlice", Name: ft.String(), Depth: tv.Depth})
 	return nil
 }
 
-func (tv *TestingVisitor) EnterPointer(ft *types.Pointer) error {
+func (tv *TestingVisitor) EnterPointer(ctx WalkContext, ft *types.Pointer) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "EnterPointer", Name: ft.String(), Depth: tv.Depth})
 	tv.Depth++
 	return nil
 }
-func (tv *TestingVisitor) LeavePointer(ft *types.Pointer) error {
+func (tv *TestingVisitor) LeavePointer(ctx WalkContext, ft *types.Pointer) error {
 	tv.Depth--
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "LeavePointer", Name: ft.String(), Depth: tv.Depth})
 	return nil
 }
 
-func (tv *TestingVisitor) EnterArray(ft *types.Array) error {
+func (tv *TestingVisitor) EnterArray(ctx WalkContext, ft *types.Array) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "EnterArray", Name: ft.String(), Depth: tv.Depth})
 	tv.Depth++
 	return nil
 }
-func (tv *TestingVisitor) LeaveArray(ft *types.Array) error {
+func (tv *TestingVisitor) LeaveArray(ctx WalkContext, ft *types.Array) error {
 	tv.Depth--
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "LeaveArray", Name: ft.String(), Depth: tv.Depth})
 	return nil
 }
 
-func (tv *TestingVisitor) VisitBasic(t *types.Basic) error {
+func (tv *TestingVisitor) VisitBasic(ctx WalkContext, t *types.Basic) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "VisitBasic", Name: t.String(), Depth: tv.Depth})
 	return nil
 }
-func (tv *TestingVisitor) VisitNamed(t *types.Named) error {
+func (tv *TestingVisitor) VisitNamed(ctx WalkContext, t *types.Named) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "VisitNamed", Name: t.String(), Depth: tv.Depth})
 	return nil
 }
