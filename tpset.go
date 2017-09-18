@@ -314,6 +314,58 @@ func (t *TypePackageSet) ObjectByName(name string) types.Object {
 	return t.Objects[tn]
 }
 
+// Lists all types in all imported user packages which implement the interface supplied
+// in the argument.
+//
+// This does not yield types from system packages or vendor packages yet.
+//
+func (t *TypePackageSet) Implements(ifaceName TypeName) (map[TypeName]types.Type, error) {
+	// Import the package referred to in the argument if we have not seen it before.
+	// This should validate the incoming name as a benefit.
+	if _, ok := t.TypePackages[ifaceName.PackagePath]; !ok {
+		if _, err := t.Import(ifaceName.PackagePath); err != nil {
+			return nil, err
+		}
+	}
+
+	iface, ok := t.Objects[ifaceName]
+	if !ok {
+		return nil, errors.Errorf("could not find object for %s", ifaceName)
+	}
+	ifaceTyp := iface.Type()
+	if !types.IsInterface(ifaceTyp) {
+		return nil, errors.Errorf("type %s is not an interface", ifaceName)
+	}
+
+	var implements = make(map[TypeName]types.Type)
+
+	for _, fobj := range t.Objects {
+		fTyp := fobj.Type()
+
+		if ifaceTyp != fTyp && !types.IsInterface(fTyp) {
+			found := false
+
+			if types.AssignableTo(ifaceTyp, fTyp) {
+				found = true
+			} else if types.AssignableTo(types.NewPointer(fTyp), ifaceTyp) {
+				found = true
+			}
+
+			if found {
+				var s types.Type
+				if p, ok := fTyp.(*types.Pointer); ok {
+					s = p.Elem()
+				} else {
+					s = fTyp
+				}
+				implements[extractTypeName(s)] = s
+			}
+		}
+	}
+
+	return implements, nil
+}
+
 func (t *TypePackageSet) indexTypes(path string, defs map[*ast.Ident]types.Object) {
 	for _, def := range defs {
 		if def == nil {

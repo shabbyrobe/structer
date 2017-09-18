@@ -98,6 +98,67 @@ func TestTypePackageSetUsesPackageWithParseError(t *testing.T) {
 	}
 }
 
+func TestTypePackageSetImplements(t *testing.T) {
+	tpset := NewTypePackageSet()
+	if _, err := tpset.Import("github.com/shabbyrobe/structer/testpkg/intfdecl1"); err != nil {
+		t.Fatalf("expected no error, found %v", err)
+	}
+
+	implements, err := tpset.Implements(NewTypeName("github.com/shabbyrobe/structer/testpkg/intfdecl1", "Test"))
+	if err != nil {
+		t.Fatalf("expected no error, found %v", err)
+	}
+
+	expected := []string{
+		"github.com/shabbyrobe/structer/testpkg/intfdecl1.TestStruct",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl1.TestStructPtr",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl1.TestPrimitive",
+	}
+	found := []string{}
+	for i := range implements {
+		found = append(found, i.String())
+	}
+
+	sort.Strings(found)
+	sort.Strings(expected)
+
+	if !reflect.DeepEqual(expected, found) {
+		t.Errorf("types did not match expected, %v %v", found, expected)
+	}
+}
+
+func TestTypePackageSetCrossPackage(t *testing.T) {
+	tpset := NewTypePackageSet()
+	if _, err := tpset.Import("github.com/shabbyrobe/structer/testpkg/intfdecl2"); err != nil {
+		t.Fatalf("expected no error, found %v", err)
+	}
+
+	implements, err := tpset.Implements(NewTypeName("github.com/shabbyrobe/structer/testpkg/intfdecl1", "Test"))
+	if err != nil {
+		t.Fatalf("expected no error, found %v", err)
+	}
+
+	expected := []string{
+		"github.com/shabbyrobe/structer/testpkg/intfdecl1.TestStruct",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl1.TestStructPtr",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl1.TestPrimitive",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl2.TestStruct",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl2.TestStructPtr",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl2.TestPrimitive",
+	}
+	found := []string{}
+	for i := range implements {
+		found = append(found, i.String())
+	}
+
+	sort.Strings(found)
+	sort.Strings(expected)
+
+	if !reflect.DeepEqual(expected, found) {
+		t.Errorf("types did not match expected, %v %v", found, expected)
+	}
+}
+
 type fieldIndex struct {
 	fields map[string]*types.Var
 }
