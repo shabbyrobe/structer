@@ -93,7 +93,12 @@ func NewTypePackageSet(opts ...option) *TypePackageSet {
 
 func (t *TypePackageSet) FindImportPath(pkg string, typeName string) (path string, err error) {
 	var tpkg *types.Package
-	if tpkg, err = t.Import(pkg); err != nil || tpkg == nil {
+	tpkg, err = t.Import(pkg)
+	if err != nil {
+		return
+	}
+	if tpkg == nil {
+		err = errors.Errorf("import path not found for pkg %s, type %s", pkg, typeName)
 		return
 	}
 
@@ -116,6 +121,8 @@ func (t *TypePackageSet) FindImportPath(pkg string, typeName string) (path strin
 			return pkg + "." + typeName, nil
 		}
 	}
+
+	err = errors.Errorf("import path not found for pkg %s, type %s", pkg, typeName)
 	return
 }
 
@@ -343,22 +350,26 @@ func (t *TypePackageSet) Implements(ifaceName TypeName) (map[TypeName]types.Type
 		fTyp := fobj.Type()
 
 		if ifaceTyp != fTyp && !types.IsInterface(fTyp) {
-			found := false
+			var impl types.Type
 
-			if types.AssignableTo(ifaceTyp, fTyp) {
-				found = true
-			} else if types.AssignableTo(types.NewPointer(fTyp), ifaceTyp) {
-				found = true
+			if types.AssignableTo(fTyp, ifaceTyp) {
+				impl = fTyp
+			} else {
+				ptr := types.NewPointer(fTyp)
+				if types.AssignableTo(ptr, ifaceTyp) {
+					impl = ptr
+				}
 			}
 
-			if found {
-				var s types.Type
-				if p, ok := fTyp.(*types.Pointer); ok {
-					s = p.Elem()
-				} else {
-					s = fTyp
-				}
-				implements[extractTypeName(s)] = s
+			if impl != nil {
+				// var s types.Type
+				// if p, ok := fTyp.(*types.Pointer); ok {
+				//     s = p.Elem()
+				// } else {
+				//     s = fTyp
+				// }
+				// implements[extractTypeName(s)] = fTyp
+				implements[extractTypeName(fTyp)] = impl
 			}
 		}
 	}
