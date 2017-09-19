@@ -80,3 +80,20 @@ func TestImportName(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestExported(t *testing.T) {
+	tn := NewBuiltinType("int")
+	if !tn.IsExported() {
+		t.Fatal()
+	}
+
+	tn, err := ParseTypeName("test/yep.unexported")
+	if tn.IsExported() || err != nil {
+		t.Fatal()
+	}
+
+	tn, err = ParseTypeName("test/yep.Exported")
+	if !tn.IsExported() || err != nil {
+		t.Fatal()
+	}
+}

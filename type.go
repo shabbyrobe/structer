@@ -3,10 +3,13 @@ package structer
 import (
 	"go/types"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
 )
+
+var exportedPattern = regexp.MustCompile(`^\p{Lu}`)
 
 type TypeName struct {
 	PackagePath string
@@ -15,6 +18,13 @@ type TypeName struct {
 	Name        string
 
 	isBuiltin bool
+}
+
+func (t TypeName) IsExported() bool {
+	if t.isBuiltin {
+		return true
+	}
+	return exportedPattern.MatchString(t.Name)
 }
 
 func (t TypeName) String() string {
