@@ -1,6 +1,7 @@
 package structer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/build"
 	"go/constant"
@@ -309,18 +310,6 @@ done:
 	return
 }
 
-// ObjectByName is a concession to pragmatism - you won't always have a
-// TypeName and it might not always be convenient to create one. Try
-// not to use this though and let me know if you feel you're forced to
-// so I can try and fix this aspect up a bit.
-func (t *TypePackageSet) ObjectByName(name string) types.Object {
-	tn, err := ParseTypeName(name)
-	if err != nil {
-		return nil
-	}
-	return t.Objects[tn]
-}
-
 // Lists all types in all imported user packages which implement the interface supplied
 // in the argument.
 //
@@ -375,6 +364,73 @@ func (t *TypePackageSet) Implements(ifaceName TypeName) (map[TypeName]types.Type
 	}
 
 	return implements, nil
+}
+
+func (t *TypePackageSet) FindObject(name TypeName) types.Object {
+	obj := t.Objects[name]
+	if obj == nil {
+		return nil
+	}
+	return obj
+}
+
+func (t *TypePackageSet) FindImportObject(name TypeName) (types.Object, error) {
+	_, err := t.Import(name.PackagePath)
+	if err != nil {
+		return nil, err
+	}
+	return t.FindObject(name), nil
+}
+
+func (t *TypePackageSet) FindObjectByName(name string) (types.Object, error) {
+	tn, err := ParseTypeName(name)
+	if err != nil {
+		return nil, err
+	}
+	return t.Objects[tn], nil
+}
+
+func (t *TypePackageSet) FindImportObjectByName(name string) (types.Object, error) {
+	tn, err := ParseTypeName(name)
+	if err != nil {
+		return nil, err
+	}
+	return t.FindImportObject(tn)
+}
+
+func (t *TypePackageSet) MustFindObject(name TypeName) types.Object {
+	typ := t.FindObject(name)
+	if typ == nil {
+		panic(fmt.Errorf("structer: could not find object %s", name))
+	}
+	return typ
+}
+
+func (t *TypePackageSet) MustFindObjectByName(name string) types.Object {
+	tn, err := ParseTypeName(name)
+	if err != nil {
+		panic(err)
+	}
+	return t.MustFindObject(tn)
+}
+
+func (t *TypePackageSet) MustFindImportObject(name TypeName) types.Object {
+	typ, err := t.FindImportObject(name)
+	if err != nil {
+		panic(fmt.Errorf("structer: could not find object %s, err: %v", name, err))
+	}
+	if typ == nil {
+		panic(fmt.Errorf("structer: could not find object %s", name))
+	}
+	return typ
+}
+
+func (t *TypePackageSet) MustFindImportObjectByName(name string) types.Object {
+	tn, err := ParseTypeName(name)
+	if err != nil {
+		panic(err)
+	}
+	return t.MustFindImportObject(tn)
 }
 
 func (t *TypePackageSet) indexTypes(path string, defs map[*ast.Ident]types.Object) {

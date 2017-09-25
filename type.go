@@ -20,6 +20,8 @@ type TypeName struct {
 	isBuiltin bool
 }
 
+func (t TypeName) IsBuiltin() bool { return t.isBuiltin }
+
 func (t TypeName) IsExported() bool {
 	if t.isBuiltin {
 		return true
