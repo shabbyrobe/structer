@@ -104,7 +104,7 @@ func TestTypePackageSetImplements(t *testing.T) {
 		t.Fatalf("expected no error, found %v", err)
 	}
 
-	implements, err := tpset.Implements(NewTypeName("github.com/shabbyrobe/structer/testpkg/intfdecl1", "Test"))
+	implements, err := tpset.FindImplementers(NewTypeName("github.com/shabbyrobe/structer/testpkg/intfdecl1", "Test"))
 	if err != nil {
 		t.Fatalf("expected no error, found %v", err)
 	}
@@ -133,7 +133,7 @@ func TestTypePackageSetCrossPackage(t *testing.T) {
 		t.Fatalf("expected no error, found %v", err)
 	}
 
-	implements, err := tpset.Implements(NewTypeName("github.com/shabbyrobe/structer/testpkg/intfdecl1", "Test"))
+	implements, err := tpset.FindImplementers(NewTypeName("github.com/shabbyrobe/structer/testpkg/intfdecl1", "Test"))
 	if err != nil {
 		t.Fatalf("expected no error, found %v", err)
 	}
@@ -156,6 +156,35 @@ func TestTypePackageSetCrossPackage(t *testing.T) {
 
 	if !reflect.DeepEqual(expected, found) {
 		t.Errorf("types did not match expected, %v %v", found, expected)
+	}
+}
+
+func TestTypePackageSetActuallyImplements(t *testing.T) {
+	tpset := NewTypePackageSet()
+	ifaceTyp := tpset.MustFindImportObjectByName("github.com/shabbyrobe/structer/testpkg/intfdecl1.Test").Type()
+	ifaceUtyp := tpset.MustFindImportObjectByName("github.com/shabbyrobe/structer/testpkg/intfdecl1.Test").Type().Underlying()
+
+	nonImplTyp := tpset.MustFindImportObjectByName("github.com/shabbyrobe/structer/testpkg/intfdecl1.DoesntImplementTest").Type()
+	if tpset.ActuallyImplements(nonImplTyp, ifaceTyp) {
+		t.Errorf("type %s wrongly reported implementing %s", nonImplTyp.String(), ifaceTyp.String())
+	}
+
+	typs := []string{
+		"github.com/shabbyrobe/structer/testpkg/intfdecl1.TestStruct",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl1.TestStructPtr",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl1.TestPrimitive",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl2.TestStruct",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl2.TestStructPtr",
+		"github.com/shabbyrobe/structer/testpkg/intfdecl2.TestPrimitive",
+	}
+	for _, s := range typs {
+		implTyp := tpset.MustFindImportObjectByName(s).Type()
+		if !tpset.ActuallyImplements(implTyp, ifaceTyp) {
+			t.Errorf("type %s wrongly reported not implementing %s", implTyp.String(), ifaceTyp.String())
+		}
+		if !tpset.ActuallyImplements(implTyp, ifaceUtyp) {
+			t.Errorf("type %s wrongly reported not implementing %s", implTyp.String(), ifaceUtyp.String())
+		}
 	}
 }
 
