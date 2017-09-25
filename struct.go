@@ -1,9 +1,9 @@
 package structer
 
 import (
+	"errors"
+	"fmt"
 	"go/types"
-
-	"github.com/pkg/errors"
 )
 
 var (
@@ -418,7 +418,7 @@ func (ctx *walkContext) walk(pkg, name string, root TypeName, ft types.Type) err
 		return ctx.visitor.VisitBasic(ctx, ft)
 
 	default:
-		panic(errors.Errorf("unhandled %T", ft))
+		panic(fmt.Errorf("unhandled %T", ft))
 	}
 }
 

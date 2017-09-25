@@ -1,6 +1,7 @@
 package structer
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -8,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type ASTPosFinder struct {
@@ -86,7 +85,7 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 		return err
 	}
 	if !info.IsDir() {
-		return errors.Errorf("unknown dir %s", dir)
+		return fmt.Errorf("unknown dir %s", dir)
 	}
 
 	astPkg := &ASTPackage{
@@ -127,7 +126,7 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 			main = true
 		} else if !strings.HasSuffix(k, "_test") {
 			if pkey != "" {
-				return errors.Errorf("multiple packages found in %s", dir)
+				return fmt.Errorf("multiple packages found in %s", dir)
 			}
 			pkey = k
 		}
@@ -138,7 +137,7 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 	}
 	if len(pkgs) > 0 {
 		if pkey == "" {
-			return errors.Errorf("no packages found in %s", dir)
+			return fmt.Errorf("no packages found in %s", dir)
 		} else {
 			astPkg.AST = pkgs[pkey]
 		}

@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 var (
@@ -99,7 +97,7 @@ func (t *TypePackageSet) FindImportPath(pkg string, typeName string) (path strin
 		return
 	}
 	if tpkg == nil {
-		err = errors.Errorf("import path not found for pkg %s, type %s", pkg, typeName)
+		err = fmt.Errorf("import path not found for pkg %s, type %s", pkg, typeName)
 		return
 	}
 
@@ -123,20 +121,20 @@ func (t *TypePackageSet) FindImportPath(pkg string, typeName string) (path strin
 		}
 	}
 
-	err = errors.Errorf("import path not found for pkg %s, type %s", pkg, typeName)
+	err = fmt.Errorf("import path not found for pkg %s, type %s", pkg, typeName)
 	return
 }
 
 func (t *TypePackageSet) ExtractSource(name TypeName) ([]byte, error) {
 	def := t.Objects[name]
 	if def == nil {
-		return nil, errors.Errorf("could not find def for %s", name)
+		return nil, fmt.Errorf("could not find def for %s", name)
 	}
 
 	pkg := def.Pkg().Path()
 	node := t.ASTPackages.FindNodeByPackagePathPos(pkg, def.Pos())
 	if node == nil {
-		return nil, errors.Errorf("no ast node for %s.%s", pkg, name)
+		return nil, fmt.Errorf("no ast node for %s.%s", pkg, name)
 	}
 
 	pos := t.ASTPackages.FileSet.Position(node.Pos()).Offset
@@ -145,12 +143,12 @@ func (t *TypePackageSet) ExtractSource(name TypeName) ([]byte, error) {
 	posn := t.ASTPackages.FileSet.PositionFor(node.Pos(), false)
 	astPkg := t.ASTPackages.Packages[pkg]
 	if astPkg == nil {
-		return nil, errors.Errorf("no ast pkg for %s", pkg)
+		return nil, fmt.Errorf("no ast pkg for %s", pkg)
 	}
 
 	contents, ok := astPkg.Contents[filepath.Base(posn.Filename)]
 	if !ok {
-		return nil, errors.Errorf("no contents for %s.%s", pkg, name)
+		return nil, fmt.Errorf("no contents for %s.%s", pkg, name)
 	}
 
 	return contents[pos:end], nil
@@ -161,7 +159,7 @@ func (t *TypePackageSet) ExtractSource(name TypeName) ([]byte, error) {
 func (t *TypePackageSet) ExtractEnum(name TypeName, includeUnexported bool) (*Enum, error) {
 	def := t.Objects[name]
 	if def == nil {
-		return nil, errors.Errorf("could not find def for %s", name)
+		return nil, fmt.Errorf("could not find def for %s", name)
 	}
 
 	enum := &Enum{
@@ -310,34 +308,6 @@ done:
 	return
 }
 
-// types.Implements is a bit more low level - this will report true if the iface
-// is a named type with an underlying interface, and also if the checked type
-// is assignable as a pointer as well as without.
-func (t *TypePackageSet) ActuallyImplements(typ types.Type, ifaceTyp types.Type) bool {
-	if ifaceTyp == typ {
-		return true
-	}
-
-	var ok bool
-	var iface *types.Interface
-	if iface, ok = ifaceTyp.(*types.Interface); !ok {
-		if iface, ok = ifaceTyp.Underlying().(*types.Interface); !ok {
-			return false
-		}
-	}
-
-	var impl types.Type
-	if types.AssignableTo(typ, iface) {
-		impl = typ
-	} else {
-		ptr := types.NewPointer(typ)
-		if types.AssignableTo(ptr, iface) {
-			impl = ptr
-		}
-	}
-	return impl != nil
-}
-
 // FindImplementers lists all types in all imported user packages which
 // implement the interface supplied in the argument.
 //
@@ -354,11 +324,11 @@ func (t *TypePackageSet) FindImplementers(ifaceName TypeName) (map[TypeName]type
 
 	iface, ok := t.Objects[ifaceName]
 	if !ok {
-		return nil, errors.Errorf("could not find object for %s", ifaceName)
+		return nil, fmt.Errorf("could not find object for %s", ifaceName)
 	}
 	ifaceTyp := iface.Type()
 	if !types.IsInterface(ifaceTyp) {
-		return nil, errors.Errorf("type %s is not an interface", ifaceName)
+		return nil, fmt.Errorf("type %s is not an interface", ifaceName)
 	}
 
 	var implements = make(map[TypeName]types.Type)
@@ -476,7 +446,7 @@ func (t *TypePackageSet) indexTypes(path string, defs map[*ast.Ident]types.Objec
 		if _, ok := def.Type().(*types.Named); ok {
 			dname := NewTypeName(path, def.Name())
 			if _, ok := t.Objects[dname]; ok {
-				panic(errors.Errorf("double-up: %s %s", path, dname))
+				panic(fmt.Errorf("double-up: %s %s", path, dname))
 			}
 			t.Objects[dname] = def
 		}

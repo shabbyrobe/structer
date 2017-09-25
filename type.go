@@ -1,12 +1,11 @@
 package structer
 
 import (
+	"fmt"
 	"go/types"
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 var exportedPattern = regexp.MustCompile(`^\p{Lu}`)
@@ -86,7 +85,7 @@ func extractTypeName(t types.Type) TypeName {
 func ParseTypeName(name string) (tn TypeName, err error) {
 	last := strings.LastIndex(name, ".")
 	if last < 0 {
-		err = errors.Errorf("invalid type %s", name)
+		err = fmt.Errorf("invalid type %s", name)
 		return
 	}
 	fullpkg, t := name[0:last], name[last+1:]
