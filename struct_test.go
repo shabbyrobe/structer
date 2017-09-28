@@ -71,6 +71,7 @@ type TestingStruct struct {
 	BasicPointer *string
 	BasicSlice   []int
 	BasicArray   [2]int
+	Interface    interface{}
 
 	BasicMap                     map[string]string
 	BasicMapOfBasicMap           map[string]map[string]string
@@ -159,6 +160,10 @@ var fieldResults = map[string][]TestingVisitorEvent{
 		{Depth: 4, Kind: "LeaveMapElem", Name: "map[string]string"},
 		{Depth: 3, Kind: "LeaveMapElem", Name: "map[string]map[string]string"},
 		{Depth: 2, Kind: "LeaveMapElem", Name: "map[string]map[string]map[string]string"},
+	},
+
+	"Interface": []TestingVisitorEvent{
+		{Depth: 2, Kind: "VisitInterface", Name: "interface{}"},
 	},
 
 	"SliceOfSlice": []TestingVisitorEvent{
@@ -424,7 +429,13 @@ func (tv *TestingVisitor) VisitBasic(ctx WalkContext, t *types.Basic) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "VisitBasic", Name: t.String(), Depth: tv.Depth})
 	return nil
 }
+
 func (tv *TestingVisitor) VisitNamed(ctx WalkContext, t *types.Named) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "VisitNamed", Name: t.String(), Depth: tv.Depth})
+	return nil
+}
+
+func (tv *TestingVisitor) VisitInterface(ctx WalkContext, t *types.Interface) error {
+	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "VisitInterface", Name: t.String(), Depth: tv.Depth})
 	return nil
 }

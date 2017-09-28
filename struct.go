@@ -60,6 +60,7 @@ type TypeVisitor interface {
 
 	VisitBasic(ctx WalkContext, t *types.Basic) error
 	VisitNamed(ctx WalkContext, t *types.Named) error
+	VisitInterface(ctx WalkContext, t *types.Interface) error
 }
 
 // PartialTypeVisitor allows you to conveniently construct a visitor using
@@ -88,8 +89,9 @@ type PartialTypeVisitor struct {
 	EnterArrayFunc func(ctx WalkContext, t *types.Array) error
 	LeaveArrayFunc func(ctx WalkContext, t *types.Array) error
 
-	VisitBasicFunc func(ctx WalkContext, t *types.Basic) error
-	VisitNamedFunc func(ctx WalkContext, t *types.Named) error
+	VisitBasicFunc     func(ctx WalkContext, t *types.Basic) error
+	VisitNamedFunc     func(ctx WalkContext, t *types.Named) error
+	VisitInterfaceFunc func(ctx WalkContext, t *types.Interface) error
 }
 
 func (p *PartialTypeVisitor) EnterStruct(ctx WalkContext, s StructInfo) error {
@@ -200,6 +202,13 @@ func (p *PartialTypeVisitor) VisitBasic(ctx WalkContext, t *types.Basic) error {
 func (p *PartialTypeVisitor) VisitNamed(ctx WalkContext, t *types.Named) error {
 	if p.VisitNamedFunc != nil {
 		return p.VisitNamedFunc(ctx, t)
+	}
+	return nil
+}
+
+func (p *PartialTypeVisitor) VisitInterface(ctx WalkContext, t *types.Interface) error {
+	if p.VisitInterfaceFunc != nil {
+		return p.VisitInterfaceFunc(ctx, t)
 	}
 	return nil
 }
@@ -358,6 +367,15 @@ func (p *MultiVisitor) VisitNamed(ctx WalkContext, t *types.Named) error {
 	return nil
 }
 
+func (p *MultiVisitor) VisitInterface(ctx WalkContext, t *types.Interface) error {
+	for _, v := range p.Visitors {
+		if err := v.VisitInterface(ctx, t); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type WalkContext interface {
 	Stack() []types.Type
 	Parent() types.Type
@@ -416,6 +434,9 @@ func (ctx *walkContext) walk(pkg, name string, root TypeName, ft types.Type) err
 
 	case *types.Basic:
 		return ctx.visitor.VisitBasic(ctx, ft)
+
+	case *types.Interface:
+		return ctx.visitor.VisitInterface(ctx, ft)
 
 	default:
 		panic(fmt.Errorf("unhandled %T", ft))
