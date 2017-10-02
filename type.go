@@ -70,8 +70,7 @@ func NewTypeName(pkgPath string, name string) TypeName {
 	}
 }
 
-// FIXME: this is kinda crappy
-func extractTypeName(t types.Type) TypeName {
+func ExtractTypeName(t types.Type) TypeName {
 	name := t.String()
 	last := strings.LastIndex(name, ".")
 	if last < 0 {

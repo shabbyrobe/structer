@@ -164,7 +164,7 @@ func (t *TypePackageSet) ExtractEnum(name TypeName, includeUnexported bool) (*En
 
 	enum := &Enum{
 		Type:       name,
-		Underlying: extractTypeName(def.Type().Underlying()),
+		Underlying: ExtractTypeName(def.Type().Underlying()),
 		Values:     make(map[string]constant.Value),
 	}
 	for n, o := range t.Infos[name.PackagePath].Defs {
@@ -355,8 +355,8 @@ func (t *TypePackageSet) FindImplementers(ifaceName TypeName) (map[TypeName]type
 				// } else {
 				//     s = fTyp
 				// }
-				// implements[extractTypeName(s)] = fTyp
-				implements[extractTypeName(fTyp)] = impl
+				// implements[ExtractTypeName(s)] = fTyp
+				implements[ExtractTypeName(fTyp)] = impl
 			}
 		}
 	}
