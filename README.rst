@@ -65,6 +65,14 @@ fully implement ``structer.TypeVisitor`` yourself, or just part of it using
     }
     
 
+Structer also allows you to extract all constant values across all imported
+packages that have a certain type::
+
+    tpset := structer.NewTypePackageSet()
+    pkg, err := tpset.Import("path/to/pkg")
+    consts, err := tpset.ExtractConstants(structer.NewTypeName("path/to/pkg", "MyEnum"), false)
+
+
 Known limitations
 -----------------
 
