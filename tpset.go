@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
-	"go/constant"
 	"go/importer"
 	"go/types"
 	"os"
@@ -154,19 +153,31 @@ func (t *TypePackageSet) ExtractSource(name TypeName) ([]byte, error) {
 	return contents[pos:end], nil
 }
 
-// ExtractEnum extracts all constants that satisfy the supplied type from
+// ExtractConsts extracts all constants that satisfy the supplied type from
 // the same package.
-func (t *TypePackageSet) ExtractEnum(name TypeName, includeUnexported bool) (*Enum, error) {
+//
+// Go provides no language-level idea of an Enum constraint, so structer provides
+// the IsEnum interface. If the type satisfies IsEnum, it is assumed that the
+// range of constants expresses the limit of all possible values for that type.
+// Otherwise, it is just a bag of constants.
+//
+func (t *TypePackageSet) ExtractConsts(name TypeName, includeUnexported bool) (*Consts, error) {
 	def := t.Objects[name]
 	if def == nil {
 		return nil, fmt.Errorf("could not find def for %s", name)
 	}
 
-	enum := &Enum{
+	named, ok := def.Type().(*types.Named)
+	if !ok {
+		return nil, fmt.Errorf("type %s must be *types.Named, found %T", name, def.Type())
+	}
+
+	consts := &Consts{
 		Type:       name,
 		Underlying: ExtractTypeName(def.Type().Underlying()),
-		Values:     make(map[string]constant.Value),
+		IsEnum:     isEnum(def, named),
 	}
+
 	for n, o := range t.Infos[name.PackagePath].Defs {
 		if o == nil {
 			continue
@@ -178,10 +189,13 @@ func (t *TypePackageSet) ExtractEnum(name TypeName, includeUnexported bool) (*En
 			continue
 		}
 		if cns, ok := o.(*types.Const); ok {
-			enum.Values[n.String()] = cns.Val()
+			consts.Values = append(consts.Values, &ConstValue{
+				Name:  NewTypeName(name.PackagePath, cns.Name()),
+				Value: cns.Val(),
+			})
 		}
 	}
-	return enum, nil
+	return consts, nil
 }
 
 func (t *TypePackageSet) ResolvePath(path, srcDir string) (PackageKind, string, error) {
@@ -459,4 +473,15 @@ func resolvePackageDir(dir string) string {
 		return ""
 	}
 	return dir
+}
+
+// isEnum checks if the type contains the "IsEnum()" function
+func isEnum(def types.Object, named *types.Named) bool {
+	mset := types.NewMethodSet(named)
+	sel := mset.Lookup(def.Pkg(), "IsEnum")
+	if sel != nil && sel.Kind() == types.MethodVal {
+		sig := sel.Type().(*types.Signature)
+		return sig.Params().Len() == 0 && sig.Results().Len() == 0
+	}
+	return false
 }

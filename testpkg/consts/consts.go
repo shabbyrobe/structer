@@ -1,4 +1,4 @@
-package enum
+package consts
 
 type TestString string
 
@@ -37,4 +37,22 @@ const (
 	TestIota1 TestIota = iota
 	TestIota2
 	TestIota3
+)
+
+type TestEnum string
+
+func (TestEnum) IsEnum() {}
+
+const (
+	TestEnum1 TestEnum = "foo"
+	TestEnum2 TestEnum = "bar"
+)
+
+type TestEnumPtr string
+
+func (*TestEnumPtr) IsEnum() {}
+
+const (
+	TestEnumPtr1 TestEnumPtr = "foo"
+	TestEnumPtr2 TestEnumPtr = "bar"
 )

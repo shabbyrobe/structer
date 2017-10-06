@@ -21,6 +21,10 @@ type TypeName struct {
 
 func (t TypeName) IsBuiltin() bool { return t.isBuiltin }
 
+func (t TypeName) IsBefore(c TypeName) bool {
+	return t.Full < c.Full
+}
+
 func (t TypeName) IsExported() bool {
 	if t.isBuiltin {
 		return true
