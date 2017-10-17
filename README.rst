@@ -8,13 +8,18 @@ Structer requires Go 1.9.
 
 It ties together `go/types <https://godoc.org/go/types>`_ and `go/ast
 <https://godoc.org/go/ast>`_ to try to simplify recursively walking through a
-type declaration, importing relevant pacakges and extracting required code.
+type declaration, importing relevant pacakges and extracting required code and
+documentation.
 
 The API is very much a moving target at this point - the main use case is
 supporting my alternative `msgp code generator
 <https://github.com/shabbyrobe/msgpgen>`_ (which supplements `msgp
 <https://github.com/tinylib/msgp>`_ with some sorely needed conveniences), but
 any reports of other use cases that could be supported would be great!
+
+Efficiency is not a major goal of this project - sewing together the disparate
+and disjointed APIs of `go/types`, `go/ast` and `go/doc` is the overriding
+priority.
 
 The core of structer is the ``TypePackageSet``, which allows you to import
 complete packages and their ASTs::

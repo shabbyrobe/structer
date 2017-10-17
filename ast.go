@@ -3,6 +3,7 @@ package structer
 import (
 	"fmt"
 	"go/ast"
+	"go/doc"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -27,6 +28,10 @@ func (a *ASTPosFinder) Visit(node ast.Node) (w ast.Visitor) {
 type ASTPackage struct {
 	AST *ast.Package
 
+	doc *doc.Package
+
+	CommentMap ast.CommentMap
+
 	// all file names, not filtered by build, found in the package, relative
 	// to FullPath
 	Files []string
@@ -50,6 +55,7 @@ type ASTPackage struct {
 }
 
 type ASTPackageSet struct {
+	ParseDoc bool
 	FileSet  *token.FileSet
 	Packages map[string]*ASTPackage
 }
@@ -59,6 +65,7 @@ func NewASTPackageSet() *ASTPackageSet {
 	pkgs := &ASTPackageSet{
 		FileSet:  fset,
 		Packages: make(map[string]*ASTPackage),
+		ParseDoc: true,
 	}
 	return pkgs
 }
@@ -77,6 +84,27 @@ func (p *ASTPackageSet) FindNodeByPackagePathPos(pkgPath string, pos token.Pos) 
 	posFinder := &ASTPosFinder{Pos: pos}
 	ast.Walk(posFinder, dastFile)
 	return posFinder.Node
+}
+
+func (p *ASTPackageSet) FindComment(pkgPath string, pos token.Pos) (docstr string, err error) {
+	node := p.FindNodeByPackagePathPos(pkgPath, pos)
+	if node == nil {
+		return
+	}
+
+	astPkg := p.Packages[pkgPath]
+	if astPkg == nil {
+		err = fmt.Errorf("could not find package %s", pkgPath)
+		return
+	}
+
+	grps := astPkg.CommentMap[node]
+	if grps != nil {
+		for _, grp := range grps {
+			docstr += grp.Text()
+		}
+	}
+	return
 }
 
 func (p *ASTPackageSet) Add(dir string, pkg string) error {
@@ -115,6 +143,24 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 		return ferr
 	}
 
+	// The left hand doesn't know what the right hand is doing.
+	// The documentation for go/doc.New() says "New computes the package
+	// documentation for the given package AST. New takes ownership of the AST
+	// pkg and may edit or overwrite it."
+	// Unfortunately, there's no way to clone an AST node. This is pretty half-assed.
+	// Go should either provide the facility to clone an AST node, or doc.New()
+	// should not take ownership. Then this horseshit would not be necessary.
+	var docPkgs map[string]*ast.Package
+	if p.ParseDoc {
+		docPkgs, err = parser.ParseDir(p.FileSet, dir, filter, parser.ParseComments)
+		if err != nil {
+			return err
+		}
+		if ferr != nil {
+			return ferr
+		}
+	}
+
 	// Some stdlib packages have a "main" with an ignore build
 	// tag in them as well as a regular package.
 	// FIXME: Now that we are using the build package elsewhere,
@@ -140,6 +186,11 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 			return fmt.Errorf("no packages found in %s", dir)
 		} else {
 			astPkg.AST = pkgs[pkey]
+			dp := docPkgs[pkey]
+			if dp != nil {
+				docPkg := doc.New(dp, dir, 0)
+				astPkg.doc = docPkg
+			}
 		}
 	}
 
@@ -147,6 +198,10 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 	// to build a separate index of package relative names
 	for name, astFile := range astPkg.AST.Files {
 		astPkg.FileASTs[filepath.Base(name)] = astFile
+
+		if p.ParseDoc {
+			astPkg.CommentMap = ast.NewCommentMap(p.FileSet, astFile, astFile.Comments)
+		}
 	}
 
 	p.Packages[pkg] = astPkg

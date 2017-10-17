@@ -159,6 +159,58 @@ func TestTypePackageSetCrossPackage(t *testing.T) {
 	}
 }
 
+func TestTypePackageSetTypeDoc(t *testing.T) {
+	var doc string
+	var err error
+	tpset := NewTypePackageSet()
+	pkg := "github.com/shabbyrobe/structer/testpkg/doc"
+	if _, err = tpset.Import(pkg); err != nil {
+		t.Fatalf("expected no error, found %v", err)
+	}
+
+	tests := []struct{ typ, out string }{
+		{"TestString", "TestString is a test string\n"},
+		// {"TestString1", "TestString1 is TestString1\n"},
+		{"TestStruct", "TestStruct is a struct\n"},
+	}
+	for _, test := range tests {
+		doc, err = tpset.TypeDoc(NewTypeName(pkg, test.typ))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if doc != test.out {
+			t.Fatalf("%q != %q", doc, test.out)
+		}
+	}
+}
+
+func TestTypePackageSetFieldDoc(t *testing.T) {
+	var doc string
+	var err error
+	tpset := NewTypePackageSet()
+	pkg := "github.com/shabbyrobe/structer/testpkg/doc"
+	if _, err = tpset.Import(pkg); err != nil {
+		t.Fatalf("expected no error, found %v", err)
+	}
+
+	tests := []struct{ typ, field, out string }{
+		{"TestStruct", "A", "A is a!\n"},
+		{"TestStruct", "B", "B is b!\n"},
+		{"TestStruct", "C", "C is c!\n"},
+		{"TestStruct", "D", "D is d!\n"},
+		{"TestStruct", "E", ""},
+	}
+	for _, test := range tests {
+		doc, err = tpset.FieldDoc(NewTypeName(pkg, test.typ), test.field)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if doc != test.out {
+			t.Fatalf("%q != %q", doc, test.out)
+		}
+	}
+}
+
 type fieldIndex struct {
 	fields map[string]*types.Var
 }
