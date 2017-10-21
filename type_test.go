@@ -1,6 +1,9 @@
 package structer
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestTypeName(t *testing.T) {
 	var err error
@@ -94,6 +97,37 @@ func TestExported(t *testing.T) {
 
 	tn, err = ParseTypeName("test/yep.Exported")
 	if !tn.IsExported() || err != nil {
+		t.Fatal()
+	}
+}
+
+func TestTypeNamesSort(t *testing.T) {
+	te := TypeNames{NewTypeName("a", "A"), NewTypeName("a", "B"), NewTypeName("z", "B")}
+	ts := TypeNames{NewTypeName("z", "B"), NewTypeName("a", "B"), NewTypeName("a", "A")}
+	ts.Sort()
+	if !reflect.DeepEqual(te, ts) {
+		t.Fatal()
+	}
+
+	ts = TypeNames{NewTypeName("z", "B"), NewTypeName("a", "A"), NewTypeName("a", "B")}
+	tr := ts.Sorted()
+	if reflect.DeepEqual(te, ts) {
+		t.Fatal()
+	}
+	if !reflect.DeepEqual(te, tr) {
+		t.Fatal()
+	}
+}
+
+func TestTypeMapSort(t *testing.T) {
+	te := TypeNames{NewTypeName("a", "A"), NewTypeName("a", "B"), NewTypeName("z", "B")}
+	tm := TypeMap{
+		NewTypeName("z", "B"): nil,
+		NewTypeName("a", "B"): nil,
+		NewTypeName("a", "A"): nil,
+	}
+	ns := tm.SortedKeys()
+	if !reflect.DeepEqual(te, ns) {
 		t.Fatal()
 	}
 }

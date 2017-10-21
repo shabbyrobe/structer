@@ -327,7 +327,7 @@ done:
 //
 // This does not yield types from system packages or vendor packages yet.
 //
-func (t *TypePackageSet) FindImplementers(ifaceName TypeName) (map[TypeName]types.Type, error) {
+func (t *TypePackageSet) FindImplementers(ifaceName TypeName) (TypeMap, error) {
 	// Import the package referred to in the argument if we have not seen it before.
 	// This should validate the incoming name as a benefit.
 	if _, ok := t.TypePackages[ifaceName.PackagePath]; !ok {
@@ -345,7 +345,7 @@ func (t *TypePackageSet) FindImplementers(ifaceName TypeName) (map[TypeName]type
 		return nil, fmt.Errorf("type %s is not an interface", ifaceName)
 	}
 
-	var implements = make(map[TypeName]types.Type)
+	var implements = make(TypeMap)
 
 	for _, fobj := range t.Objects {
 		fTyp := fobj.Type()

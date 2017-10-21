@@ -5,6 +5,7 @@ import (
 	"go/types"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -107,4 +108,32 @@ func ParseLocalName(name string, localPkg string) (tn TypeName, err error) {
 		return NewTypeName(localPkg, name), nil
 	}
 	return ParseTypeName(name)
+}
+
+type TypeNames []TypeName
+
+func (ns TypeNames) Sort() {
+	sort.Slice(ns, func(i, j int) bool {
+		return ns[i].Full < ns[j].Full
+	})
+}
+
+func (ns TypeNames) Sorted() TypeNames {
+	names := make(TypeNames, len(ns))
+	copy(names, ns)
+	names.Sort()
+	return names
+}
+
+type TypeMap map[TypeName]types.Type
+
+func (m TypeMap) SortedKeys() TypeNames {
+	names := make(TypeNames, len(m))
+	i := 0
+	for k := range m {
+		names[i] = k
+		i++
+	}
+	names.Sort()
+	return names
 }
