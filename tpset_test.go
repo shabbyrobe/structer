@@ -170,8 +170,11 @@ func TestTypePackageSetTypeDoc(t *testing.T) {
 
 	tests := []struct{ typ, out string }{
 		{"TestString", "TestString is a test string\n"},
-		// {"TestString1", "TestString1 is TestString1\n"},
+		{"TestString1", "TestString1 is TestString1\n"},
 		{"TestStruct", "TestStruct is a struct\n"},
+		{"GroupedType1", "Grouped Type 1\n"},
+		{"GroupedType2", "Grouped Type 2\n"},
+		{"GroupedType3", "Grouped Type 3\nMulti Line\n"},
 	}
 	for _, test := range tests {
 		doc, err = tpset.TypeDoc(NewTypeName(pkg, test.typ))

@@ -59,6 +59,22 @@ type ASTPackageSet struct {
 	ParseDoc bool
 	FileSet  *token.FileSet
 	Packages map[string]*ASTPackage
+
+	// Docs on single struct declarations appear on ast.GenDecl, but if we
+	// search for a types.Object, we get an ast.TypeSpec. For multi-struct
+	// parenthesised declarations, the doc appears on the ast.TypeSpec, i.e:
+	//     type (
+	//         // yep
+	//         foo struct {}
+	//     )
+	//
+	// We get around this by indexing all GenDecls by TypeSpec, so we can look
+	// them back up later.
+	//
+	// More info:
+	// https://stackoverflow.com/questions/19580688/go-parser-not-detecting-doc-comments-on-struct-type
+	//
+	GenDecls map[*ast.TypeSpec]*ast.GenDecl
 }
 
 func NewASTPackageSet() *ASTPackageSet {
@@ -67,6 +83,7 @@ func NewASTPackageSet() *ASTPackageSet {
 		FileSet:  fset,
 		Packages: make(map[string]*ASTPackage),
 		ParseDoc: true,
+		GenDecls: make(map[*ast.TypeSpec]*ast.GenDecl),
 	}
 	return pkgs
 }
@@ -103,6 +120,15 @@ func (p *ASTPackageSet) FindComment(pkgPath string, pos token.Pos) (docstr strin
 	// https://stackoverflow.com/questions/30092417/what-is-the-difference-between-doc-and-comment-in-go-ast-package
 
 	grps := astPkg.CommentMap[node]
+	if grps == nil {
+		if ts, ok := node.(*ast.TypeSpec); ok {
+			gd := p.GenDecls[ts]
+			if len(gd.Specs) == 1 {
+				grps = []*ast.CommentGroup{gd.Doc}
+			}
+		}
+	}
+
 	if grps != nil {
 		for _, grp := range grps {
 			docstr += grp.Text()
@@ -213,6 +239,16 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 						panic(errors.New("duplicate node found"))
 					}
 					astPkg.CommentMap[k] = v
+				}
+			}
+		}
+
+		for _, decl := range astFile.Decls {
+			if gd, ok := decl.(*ast.GenDecl); ok {
+				for _, spec := range gd.Specs {
+					if ts, ok := spec.(*ast.TypeSpec); ok {
+						p.GenDecls[ts] = gd
+					}
 				}
 			}
 		}

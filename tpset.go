@@ -470,52 +470,13 @@ func (t *TypePackageSet) indexTypes(path string, defs map[*ast.Ident]types.Objec
 // TypeDoc returns the documentation for a type. It can not return
 // documentation for a package-level const or var because it uses go/doc at the
 // moment. That may change, but it will probably require a new method.
-func (t *TypePackageSet) TypeDoc(tn TypeName) (doc string, err error) {
-	/*
-		This would be a better way to get it because we can remove go/doc,
-		but I haven't quite worked out how to connect the dots yet. CommentMap
-		is indexed by GenDecl, but I don't know how to go from types.Object to
-		a GenDecl.
-
-		Here's some help for later. A grouped type declaration (i.e. "type(...)") yields a TypeSpec
-		for each type (TestTypeGroup{1,2}), but a single type declaration (i.e. "type Name ...")
-		gets a GenDecl. Maybe we can map that when we load the package.
-
-			(ast.CommentMap) (len=16) CommentMap {
-				0xc4206cd540        *ast.ValueSpec:  // TestString3 is TestString3
-				0xc420b25b40          *ast.GenDecl:  // TestStruct is a struct
-				0xc420b25780          *ast.GenDecl:  // TestString is a test string
-				0xc4206cd5e0        *ast.ValueSpec:  // TestString4 is TestString4
-				0xc4207cf650         *ast.TypeSpec:  // TestTypeGroup2 yep
-				0xc420b25980            *ast.Field:  // A is a!
-				0xc420b25c00          *ast.GenDecl:  // TestInt is an int
-				0xc4206cd400        *ast.ValueSpec:  // TestString1 is TestString1
-				0xc4206cd720        *ast.ValueSpec:  // testString6 is unexported
-				0xc420b25900          *ast.GenDecl:  // Group of types
-				0xc4207cf620         *ast.TypeSpec:  // TestTypeGroup1 yep
-				0xc420b259c0            *ast.Field:  // B is b!
-				0xc420b25a40            *ast.Field:  // C is c!
-				0xc420b25a80            *ast.Field:  // D is d!
-				0xc420b25bc0          *ast.GenDecl:  // TestIntf is an interface
-				0xc4206cd4a0        *ast.ValueSpec:  // TestString2 is TestString2
-			}
-
-		var tobj types.Object
-		tobj = t.FindObject(tn)
-		if tobj == nil {
-			err = fmt.Errorf("type %s not found", tn)
-			return
-		}
-
-		astPkg := t.ASTPackages.Packages[tn.PackagePath]
-		if astPkg == nil {
-			err = fmt.Errorf("no ast pkg for %s", tn)
-			return
-		}
-
-		docstr, err = t.ASTPackages.FindComment(tn.PackagePath, tobj.Pos())
+func (t *TypePackageSet) TypeDoc(tn TypeName) (docstr string, err error) {
+	var tobj types.Object
+	tobj = t.FindObject(tn)
+	if tobj == nil {
+		err = fmt.Errorf("type %s not found", tn)
 		return
-	*/
+	}
 
 	astPkg := t.ASTPackages.Packages[tn.PackagePath]
 	if astPkg == nil {
@@ -523,12 +484,7 @@ func (t *TypePackageSet) TypeDoc(tn TypeName) (doc string, err error) {
 		return
 	}
 
-	for _, dt := range astPkg.doc.Types {
-		if dt.Name == tn.Name {
-			doc = dt.Doc
-			return
-		}
-	}
+	docstr, err = t.ASTPackages.FindComment(tn.PackagePath, tobj.Pos())
 	return
 }
 
