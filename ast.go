@@ -1,6 +1,7 @@
 package structer
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/doc"
@@ -97,6 +98,9 @@ func (p *ASTPackageSet) FindComment(pkgPath string, pos token.Pos) (docstr strin
 		err = fmt.Errorf("could not find package %s", pkgPath)
 		return
 	}
+
+	// Some funny shenanigans here, maybe need to keep this in mind in future?
+	// https://stackoverflow.com/questions/30092417/what-is-the-difference-between-doc-and-comment-in-go-ast-package
 
 	grps := astPkg.CommentMap[node]
 	if grps != nil {
@@ -200,7 +204,17 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 		astPkg.FileASTs[filepath.Base(name)] = astFile
 
 		if p.ParseDoc {
-			astPkg.CommentMap = ast.NewCommentMap(p.FileSet, astFile, astFile.Comments)
+			if astPkg.CommentMap == nil {
+				astPkg.CommentMap = ast.NewCommentMap(p.FileSet, astFile, astFile.Comments)
+			} else {
+				childMap := ast.NewCommentMap(p.FileSet, astFile, astFile.Comments)
+				for k, v := range childMap {
+					if _, ok := astPkg.CommentMap[k]; ok {
+						panic(errors.New("duplicate node found"))
+					}
+					astPkg.CommentMap[k] = v
+				}
+			}
 		}
 	}
 
