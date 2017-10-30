@@ -229,7 +229,7 @@ func (t *TypePackageSet) ResolvePath(path, srcDir string) (PackageKind, string, 
 func (t *TypePackageSet) ImportNamed(named *types.Named) (*types.Package, error) {
 	tn, err := ParseTypeName(named.String())
 	if err != nil {
-		return nil, fmt.Errorf("structer: ImportNamed failed: %v", err)
+		return nil, err
 	}
 	return t.Import(tn.PackagePath)
 }
@@ -397,7 +397,7 @@ func (t *TypePackageSet) FindImportObject(name TypeName) (types.Object, error) {
 func (t *TypePackageSet) FindObjectByName(name string) (types.Object, error) {
 	tn, err := ParseTypeName(name)
 	if err != nil {
-		return nil, fmt.Errorf("structer: FindObjectByName failed: %v", err)
+		return nil, err
 	}
 	return t.Objects[tn], nil
 }
@@ -405,7 +405,7 @@ func (t *TypePackageSet) FindObjectByName(name string) (types.Object, error) {
 func (t *TypePackageSet) FindImportObjectByName(name string) (types.Object, error) {
 	tn, err := ParseTypeName(name)
 	if err != nil {
-		return nil, fmt.Errorf("structer: FindImportObjectByName failed: %v", err)
+		return nil, err
 	}
 	return t.FindImportObject(tn)
 }
