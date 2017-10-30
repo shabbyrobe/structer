@@ -60,6 +60,7 @@ type TypeVisitor interface {
 
 	VisitBasic(ctx WalkContext, t *types.Basic) error
 	VisitNamed(ctx WalkContext, t *types.Named) error
+	VisitInvalid(ctx WalkContext, root TypeName, t *types.Basic) error
 	VisitInterface(ctx WalkContext, t *types.Interface) error
 }
 
@@ -91,6 +92,7 @@ type PartialTypeVisitor struct {
 
 	VisitBasicFunc     func(ctx WalkContext, t *types.Basic) error
 	VisitNamedFunc     func(ctx WalkContext, t *types.Named) error
+	VisitInvalidFunc   func(ctx WalkContext, root TypeName, t *types.Basic) error
 	VisitInterfaceFunc func(ctx WalkContext, t *types.Interface) error
 }
 
@@ -195,6 +197,13 @@ func (p *PartialTypeVisitor) LeaveArray(ctx WalkContext, t *types.Array) error {
 func (p *PartialTypeVisitor) VisitBasic(ctx WalkContext, t *types.Basic) error {
 	if p.VisitBasicFunc != nil {
 		return p.VisitBasicFunc(ctx, t)
+	}
+	return nil
+}
+
+func (p *PartialTypeVisitor) VisitInvalid(ctx WalkContext, root TypeName, t *types.Basic) error {
+	if p.VisitInvalidFunc != nil {
+		return p.VisitInvalidFunc(ctx, root, t)
 	}
 	return nil
 }
@@ -358,6 +367,15 @@ func (p *MultiVisitor) VisitBasic(ctx WalkContext, t *types.Basic) error {
 	return nil
 }
 
+func (p *MultiVisitor) VisitInvalid(ctx WalkContext, root TypeName, t *types.Basic) error {
+	for _, v := range p.Visitors {
+		if err := v.VisitInvalid(ctx, root, t); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *MultiVisitor) VisitNamed(ctx WalkContext, t *types.Named) error {
 	for _, v := range p.Visitors {
 		if err := v.VisitNamed(ctx, t); err != nil {
@@ -432,11 +450,15 @@ func (ctx *walkContext) walk(pkg, name string, root TypeName, ft types.Type) err
 	case *types.Named:
 		return ctx.visitor.VisitNamed(ctx, ft)
 
-	case *types.Basic:
-		return ctx.visitor.VisitBasic(ctx, ft)
-
 	case *types.Interface:
 		return ctx.visitor.VisitInterface(ctx, ft)
+
+	case *types.Basic:
+		if ft.Kind() == types.Invalid {
+			return ctx.visitor.VisitInvalid(ctx, root, ft)
+		} else {
+			return ctx.visitor.VisitBasic(ctx, ft)
+		}
 
 	default:
 		panic(fmt.Errorf("unhandled %T", ft))

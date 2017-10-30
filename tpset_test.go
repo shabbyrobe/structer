@@ -214,6 +214,24 @@ func TestTypePackageSetFieldDoc(t *testing.T) {
 	}
 }
 
+func TestTypePackageSetInvalidField(t *testing.T) {
+	var err error
+	tpset := NewTypePackageSet()
+	pkg := "github.com/shabbyrobe/structer/testpkg/invalid"
+	if _, err = tpset.Import(pkg); err != nil {
+		t.Fatalf("expected no error, found %v", err)
+	}
+
+	obj, err := tpset.FindObjectByName("github.com/shabbyrobe/structer/testpkg/invalid.InvalidField")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stct := obj.Type().Underlying().(*types.Struct)
+	if !IsInvalid(stct.Field(0).Type()) {
+		t.Fatal("Expected field 0 to be invalid")
+	}
+}
+
 type fieldIndex struct {
 	fields map[string]*types.Var
 }

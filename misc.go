@@ -29,3 +29,14 @@ func ActuallyImplements(typ types.Type, ifaceTyp types.Type) bool {
 	}
 	return impl != nil
 }
+
+func IsObjectInvalid(obj types.Object) bool {
+	return IsInvalid(obj.Type()) || IsInvalid(obj.Type().Underlying())
+}
+
+func IsInvalid(typ types.Type) bool {
+	if basic, ok := typ.(*types.Basic); ok {
+		return basic.Kind() == types.Invalid
+	}
+	return false
+}

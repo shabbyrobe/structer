@@ -430,6 +430,11 @@ func (tv *TestingVisitor) VisitBasic(ctx WalkContext, t *types.Basic) error {
 	return nil
 }
 
+func (tv *TestingVisitor) VisitInvalid(ctx WalkContext, root TypeName, t *types.Basic) error {
+	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "VisitInvalid", Name: root.String(), Depth: tv.Depth})
+	return nil
+}
+
 func (tv *TestingVisitor) VisitNamed(ctx WalkContext, t *types.Named) error {
 	tv.Events = append(tv.Events, TestingVisitorEvent{Kind: "VisitNamed", Name: t.String(), Depth: tv.Depth})
 	return nil
