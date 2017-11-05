@@ -26,6 +26,8 @@ type ConstValue struct {
 	Value constant.Value
 }
 
-type IsEnum interface {
+type Enum interface {
 	IsEnum()
 }
+
+var EnumType = NewTypeName("github.com/shabbyrobe/structer", "Enum")
