@@ -32,15 +32,15 @@ type ASTStackPosFinder struct {
 }
 
 func (a *ASTStackPosFinder) Visit(node ast.Node) (w ast.Visitor) {
-	if node == nil {
-		if !a.Found {
+	if !a.Found {
+		if node == nil {
 			a.Stack = a.Stack[:len(a.Stack)-1]
-		}
-	} else {
-		a.Stack = append(a.Stack, node)
-		if node.Pos() == a.Pos {
-			a.Found = true
-			return nil
+		} else {
+			a.Stack = append(a.Stack, node)
+			if node.Pos() == a.Pos {
+				a.Found = true
+				return nil
+			}
 		}
 	}
 	return a
