@@ -38,8 +38,6 @@ func CaptureErrors(h func(error)) option {
 type TypePackageSet struct {
 	Config Config
 
-	imported map[string]bool
-
 	TypePackages map[string]*types.Package
 	ASTPackages  *ASTPackageSet
 	Infos        map[string]types.Info
@@ -77,7 +75,6 @@ func NewTypePackageSet(opts ...option) *TypePackageSet {
 		BuiltFiles:      make(map[string][]string),
 		Objects:         make(map[TypeName]types.Object),
 		Kinds:           make(map[string]PackageKind),
-		imported:        make(map[string]bool),
 	}
 	tps.AllowHardTypesError = true
 	tps.TypesConfig.IgnoreFuncBodies = true
@@ -246,11 +243,12 @@ func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.Import
 	var (
 		resolved     string
 		info         types.Info
+		ok           bool
 		kind         PackageKind
 		buildPackage *build.Package
 	)
 
-	if t.imported[importPath] {
+	if pkg, ok = t.TypePackages[importPath]; ok {
 		goto done
 	}
 	if kind, resolved, err = t.ResolvePath(importPath, srcDir); kind == NoPackage || err != nil {
@@ -320,10 +318,7 @@ func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.Import
 	}
 
 done:
-	t.imported[importPath] = true
-	if pkg != nil {
-		t.TypePackages[importPath] = pkg
-	}
+	t.TypePackages[importPath] = pkg
 	return
 }
 
