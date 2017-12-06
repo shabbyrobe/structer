@@ -137,3 +137,16 @@ func (m TypeMap) SortedKeys() TypeNames {
 	names.Sort()
 	return names
 }
+
+type ObjectMap map[TypeName]types.Object
+
+func (m ObjectMap) SortedKeys() TypeNames {
+	names := make(TypeNames, len(m))
+	i := 0
+	for k := range m {
+		names[i] = k
+		i++
+	}
+	names.Sort()
+	return names
+}
