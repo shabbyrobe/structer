@@ -95,6 +95,8 @@ type ASTPackageSet struct {
 	GenDecls map[*ast.TypeSpec]*ast.GenDecl
 
 	Decls map[token.Pos]ast.Decl
+
+	Imported map[string]bool
 }
 
 func NewASTPackageSet() *ASTPackageSet {
@@ -105,6 +107,7 @@ func NewASTPackageSet() *ASTPackageSet {
 		ParseDoc: true,
 		GenDecls: make(map[*ast.TypeSpec]*ast.GenDecl),
 		Decls:    make(map[token.Pos]ast.Decl),
+		Imported: make(map[string]bool),
 	}
 	return pkgs
 }
@@ -126,14 +129,11 @@ func (p *ASTPackageSet) FindNodeByPackagePathPos(pkgPath string, pos token.Pos) 
 }
 
 func (p *ASTPackageSet) ParentDecl(pkgPath string, pos token.Pos) ast.Node {
-	// FIXME: investigate what a "position altering comment" does to this.
-	posn := p.FileSet.PositionFor(pos, false)
+	// FIXME: some of this might be helpful to simplify this crap:
+	// https://github.com/golang/example/tree/master/gotypes#getting-from-a-to-b
+
 	dast := p.Packages[pkgPath]
 	if dast == nil {
-		return nil
-	}
-	dastFile := dast.AST.Files[posn.Filename]
-	if dastFile == nil {
 		return nil
 	}
 	if p.Decls[pos] != nil {
@@ -141,7 +141,7 @@ func (p *ASTPackageSet) ParentDecl(pkgPath string, pos token.Pos) ast.Node {
 	}
 
 	posFinder := &ASTStackPosFinder{Pos: pos}
-	ast.Walk(posFinder, dastFile)
+	ast.Walk(posFinder, dast.AST)
 
 	for j := len(posFinder.Stack) - 1; j >= 0; j-- {
 		if d, ok := p.Decls[posFinder.Stack[j].Pos()]; ok {
@@ -194,6 +194,11 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 	if dir == "" {
 		dir = filepath.Join(BuildContext.GOPATH, "src", pkg)
 	}
+
+	if p.Imported[dir] {
+		return nil
+	}
+	p.Imported[dir] = true
 
 	info, err := os.Stat(dir)
 	if err != nil {

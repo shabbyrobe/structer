@@ -77,7 +77,7 @@ func NewTypePackageSet(opts ...option) *TypePackageSet {
 		Kinds:           make(map[string]PackageKind),
 	}
 	tps.AllowHardTypesError = true
-	tps.TypesConfig.IgnoreFuncBodies = true
+	tps.TypesConfig.IgnoreFuncBodies = false
 	tps.TypesConfig.DisableUnusedImportCheck = true
 	tps.TypesConfig.Error = func(err error) {
 		wlog(tps.Log, LogTypeSet, LogTypesConfigError, err.Error())
