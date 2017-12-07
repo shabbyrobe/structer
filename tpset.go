@@ -276,8 +276,9 @@ func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.Import
 		t.BuiltFiles[importPath] = buildPackage.GoFiles
 
 		info = types.Info{
-			Types: make(map[ast.Expr]types.TypeAndValue),
-			Defs:  make(map[*ast.Ident]types.Object),
+			Types:      make(map[ast.Expr]types.TypeAndValue),
+			Defs:       make(map[*ast.Ident]types.Object),
+			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		}
 
 		if err = t.ASTPackages.Add(resolved, importPath); err != nil {
