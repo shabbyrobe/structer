@@ -29,8 +29,8 @@ func TestTypeName(t *testing.T) {
 		in      string
 		exp     TypeName
 	}{
-		{false, "foo.bar", TypeName{Full: "foo.bar", PackagePath: "foo", Name: "bar", PackageName: "foo", isBuiltin: false}},
-		{false, "yep/foo.bar", TypeName{Full: "yep/foo.bar", PackagePath: "yep/foo", Name: "bar", PackageName: "foo", isBuiltin: false}},
+		{false, "foo.bar", TypeName{Full: "foo.bar", PackagePath: "foo", Name: "bar", isBuiltin: false}},
+		{false, "yep/foo.bar", TypeName{Full: "yep/foo.bar", PackagePath: "yep/foo", Name: "bar", isBuiltin: false}},
 
 		{true, "int", TypeName{Full: "int", Name: "int", isBuiltin: true}},
 	}
@@ -47,40 +47,6 @@ func TestTypeName(t *testing.T) {
 		if tn != n.exp {
 			t.Fatalf("expected %s, found %s", n.exp, tn)
 		}
-	}
-}
-
-func TestImportName(t *testing.T) {
-	// builtin should never show package prefix
-	tn := NewBuiltinType("int")
-	if tn.ImportName("", false) != "int" {
-		t.Fatal()
-	}
-	if tn.ImportName("pants", false) != "int" {
-		t.Fatal()
-	}
-	if tn.ImportName("int", false) != "int" {
-		t.Fatal()
-	}
-
-	tn, _ = ParseTypeName("test/yep.Foo")
-	if tn.ImportName("", false) != "yep.Foo" {
-		t.Fatal()
-	}
-	if tn.ImportName("test", false) != "yep.Foo" {
-		t.Fatal()
-	}
-	if tn.ImportName("test/yep", false) != "Foo" {
-		t.Fatal()
-	}
-	if tn.ImportName("test/yep", true) != "Foo" {
-		t.Fatal()
-	}
-	if tn.ImportName("yep", false) == "Foo" {
-		t.Fatal()
-	}
-	if tn.ImportName("yep", true) != "Foo" {
-		t.Fatal()
 	}
 }
 

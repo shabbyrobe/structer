@@ -44,6 +44,50 @@ func TestTypePackageSetParseError(t *testing.T) {
 	}
 }
 
+func TestTypePackageSetPackageLocalName(t *testing.T) {
+	tpset := NewTypePackageSet()
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/valid")
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/testmain")
+
+	{ // test valid type name from named package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/valid", "Valid")
+		ln, err := tpset.LocalPackageFromType(tn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "valid" {
+			t.Fatal()
+		}
+
+		ln, err = tpset.LocalPackage(tn.PackagePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "valid" {
+			t.Fatal()
+		}
+	}
+
+	{ // test valid type name from main package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/testmain", "Main")
+		ln, err := tpset.LocalPackageFromType(tn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "main" {
+			t.Fatal()
+		}
+
+		ln, err = tpset.LocalPackage(tn.PackagePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "main" {
+			t.Fatal()
+		}
+	}
+}
+
 // Ensures that even if an interface is incorrectly implemented in a package,
 // the types can still be extracted. This is important as we intend this to
 // be used for code generators, which may be responsible for generating the

@@ -124,6 +124,18 @@ func (t *TypePackageSet) FindImportPath(pkg string, typeName string) (path strin
 	return
 }
 
+func (t *TypePackageSet) LocalPackageFromType(name TypeName) (string, error) {
+	return t.LocalPackage(name.PackagePath)
+}
+
+func (t *TypePackageSet) LocalPackage(packageName string) (string, error) {
+	p := t.TypePackages[packageName]
+	if p == nil {
+		return "", fmt.Errorf("package not found %s", packageName)
+	}
+	return p.Name(), nil
+}
+
 func (t *TypePackageSet) ExtractSource(name TypeName) ([]byte, error) {
 	def := t.Objects[name]
 	if def == nil {
