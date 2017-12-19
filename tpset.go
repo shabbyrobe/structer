@@ -136,6 +136,32 @@ func (t *TypePackageSet) LocalPackage(packageName string) (string, error) {
 	return p.Name(), nil
 }
 
+func (t *TypePackageSet) LocalImportName(name TypeName, relPkg string) (string, error) {
+	if name.IsBuiltin() {
+		return name.Name, nil
+	}
+
+	tloc, err := t.LocalPackage(name.PackagePath)
+	if err != nil {
+		return "", err
+	}
+	if tloc == "main" {
+		if name.PackagePath != relPkg {
+			return "", fmt.Errorf("Attempted to import main relative to package")
+		}
+	}
+
+	rloc, err := t.LocalPackage(relPkg)
+	if err != nil {
+		return "", err
+	}
+	if tloc == rloc {
+		return name.Name, nil
+	} else {
+		return fmt.Sprintf("%s.%s", tloc, name.Name), nil
+	}
+}
+
 func (t *TypePackageSet) ExtractSource(name TypeName) ([]byte, error) {
 	def := t.Objects[name]
 	if def == nil {

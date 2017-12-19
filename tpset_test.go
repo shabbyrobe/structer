@@ -88,6 +88,54 @@ func TestTypePackageSetPackageLocalName(t *testing.T) {
 	}
 }
 
+func TestTypePackageSet(t *testing.T) {
+	tpset := NewTypePackageSet()
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/valid")
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/valid2")
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/testmain")
+
+	{ // import relative to the same package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/valid", "Valid")
+		ln, err := tpset.LocalImportName(tn, "github.com/shabbyrobe/structer/testpkg/valid")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "Valid" {
+			t.Fatal()
+		}
+	}
+
+	{ // import relative to different package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/valid", "Valid")
+		ln, err := tpset.LocalImportName(tn, "github.com/shabbyrobe/structer/testpkg/valid2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "valid.Valid" {
+			t.Fatal()
+		}
+	}
+
+	{ // import relative to main package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/valid", "Valid")
+		ln, err := tpset.LocalImportName(tn, "github.com/shabbyrobe/structer/testpkg/testmain")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "valid.Valid" {
+			t.Fatal()
+		}
+	}
+
+	{ // import main relative to package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/testmain", "Main")
+		_, err := tpset.LocalImportName(tn, "github.com/shabbyrobe/structer/testpkg/valid")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	}
+}
+
 // Ensures that even if an interface is incorrectly implemented in a package,
 // the types can still be extracted. This is important as we intend this to
 // be used for code generators, which may be responsible for generating the
