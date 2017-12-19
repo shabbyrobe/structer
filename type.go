@@ -89,6 +89,7 @@ func ParseTypeName(name string) (tn TypeName, err error) {
 	return
 }
 
+// WAT?
 func ParseLocalName(name string, localPkg string) (tn TypeName, err error) {
 	last := strings.LastIndex(name, ".")
 	if last < 0 {

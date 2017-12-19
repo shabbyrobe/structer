@@ -236,9 +236,85 @@ func (t *TypePackageSet) ExtractConsts(name TypeName, includeUnexported bool) (*
 	return consts, nil
 }
 
+func (t *TypePackageSet) FilePackage(file string) (PackageKind, string, error) {
+	goSrcPath := filepath.Join(BuildContext.GOPATH, "src")
+
+	dir := filepath.Dir(file)
+
+	// FIXME: dir MUST be a child of GOPATH. Unfortunately, they didn't bother
+	// to provide a reasonable alternative, pointer, suggestion, anything, when
+	// they deprecated filepath.HasPrefix.
+
+	dirParts := splitPath(dir)
+
+	// Is it a vendor package?
+	j := len(dirParts) - 1
+	for ; j >= 0; j-- {
+		if dirParts[j] == "vendor" {
+			return VendorPackage, filepath.Join(dirParts[j+1:]...), nil
+		}
+	}
+
+	// Is it a SystemPackage?
+	goRootParts := splitPath(filepath.Join(BuildContext.GOROOT, "src"))
+	isSystem := len(goRootParts) > 0
+	if len(goRootParts) <= len(dirParts) {
+		// This check is grotesque. filepath.HasPrefix is deprecated, there's no
+		// other way to check if a path is a child of another I can see.
+		for i := 0; i < len(goRootParts); i++ {
+			s1, err := os.Stat(filepath.Join(goRootParts[:i+1]...))
+			if err != nil {
+				return "", "", err
+			}
+			s2, err := os.Stat(filepath.Join(dirParts[:i+1]...))
+			if err != nil {
+				return "", "", err
+			}
+			if !os.SameFile(s1, s2) {
+				isSystem = false
+				break
+			}
+		}
+	}
+	if isSystem {
+		return SystemPackage, filepath.Join(dirParts[len(goRootParts):]...), nil
+	}
+
+	// Is it a UserPackage?
+	goSrcParts := splitPath(goSrcPath)
+	isUser := len(goSrcPath) > 0
+	if len(goSrcParts) <= len(dirParts) {
+		for i := 0; i < len(goSrcParts); i++ {
+			s1, err := os.Stat(filepath.Join(goSrcParts[:i+1]...))
+			if err != nil {
+				return "", "", err
+			}
+			s2, err := os.Stat(filepath.Join(goSrcParts[:i+1]...))
+			if err != nil {
+				return "", "", err
+			}
+			if !os.SameFile(s1, s2) {
+				isUser = false
+				break
+			}
+		}
+	}
+
+	if isUser {
+		return UserPackage, filepath.Join(dirParts[len(goSrcParts):]...), nil
+	}
+
+	return NoPackage, "", nil
+}
+
 func (t *TypePackageSet) ResolvePath(path, srcDir string) (PackageKind, string, error) {
 	// Is it a VendorPackage?
 	goSrcPath := filepath.Join(BuildContext.GOPATH, "src")
+
+	// FIXME: srcDir MUST be a child of GOPATH. Unfortunately, they didn't bother
+	// to provide a reasonable alternative, pointer, suggestion, anything, when
+	// they deprecated filepath.HasPrefix.
+
 	cur := srcDir
 	for cur != goSrcPath {
 		vendorDir := filepath.Join(cur, "vendor")
@@ -272,11 +348,15 @@ func (t *TypePackageSet) ImportNamed(named *types.Named) (*types.Package, error)
 	return t.Import(tn.PackagePath)
 }
 
+// Import a package using the default GOPATH/src folder. See go/types.Importer.
 func (t *TypePackageSet) Import(importPath string) (*types.Package, error) {
 	srcPath := filepath.Join(BuildContext.GOPATH, "src", importPath)
 	return t.ImportFrom(importPath, srcPath, 0)
 }
 
+// ImportFrom returns the imported package for the given import path when
+// imported by a package file located in dir.
+// See go/types.ImporterFrom.
 func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.ImportMode) (pkg *types.Package, err error) {
 	var (
 		resolved     string

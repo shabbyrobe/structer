@@ -2,7 +2,9 @@ package structer
 
 import (
 	"go/types"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"testing"
 )
@@ -321,6 +323,56 @@ func TestTypePackageSetInvalidField(t *testing.T) {
 	stct := obj.Type().Underlying().(*types.Struct)
 	if !IsInvalid(stct.Field(0).Type()) {
 		t.Fatal("Expected field 0 to be invalid")
+	}
+}
+
+func TestTypePackageSetFilePackage(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+
+	{ // user package
+		testFile := filepath.Join(dir, "testpkg", "valid", "valid.go")
+		tpset := NewTypePackageSet()
+		kind, pkg, err := tpset.FilePackage(testFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind != UserPackage {
+			t.Fatal(kind)
+		}
+		if pkg != "github.com/shabbyrobe/structer/testpkg/valid" {
+			t.Fatal(pkg)
+		}
+	}
+
+	{ // vendor package
+		testFile := filepath.Join(dir, "testpkg", "testvendor", "vendor", "vendored", "vendored.go")
+		tpset := NewTypePackageSet()
+		kind, pkg, err := tpset.FilePackage(testFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind != VendorPackage {
+			t.Fatal(kind)
+		}
+		if pkg != "vendored" {
+			t.Fatal(pkg)
+		}
+	}
+
+	{ // system package
+		testFile := filepath.Join(BuildContext.GOROOT, "src", "runtime", "panic.go")
+		tpset := NewTypePackageSet()
+		kind, pkg, err := tpset.FilePackage(testFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind != SystemPackage {
+			t.Fatal(kind)
+		}
+		if pkg != "runtime" {
+			t.Fatal(pkg)
+		}
 	}
 }
 
