@@ -147,7 +147,7 @@ func (t *TypePackageSet) LocalImportName(name TypeName, relPkg string) (string, 
 	}
 	if tloc == "main" {
 		if name.PackagePath != relPkg {
-			return "", fmt.Errorf("Attempted to import main relative to package")
+			return "", fmt.Errorf("Attempted to import main relative to package %q", relPkg)
 		}
 	}
 
