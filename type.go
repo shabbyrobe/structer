@@ -3,7 +3,6 @@ package structer
 import (
 	"fmt"
 	"go/types"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -13,9 +12,9 @@ var exportedPattern = regexp.MustCompile(`^\p{Lu}`)
 
 type TypeName struct {
 	PackagePath string
-	PackageName string
-	Full        string
-	Name        string
+
+	Full string
+	Name string
 
 	isBuiltin bool
 }
@@ -48,16 +47,6 @@ func (t TypeName) IsType(typ types.Type) bool {
 	return t.String() == typ.String()
 }
 
-func (t TypeName) ImportName(rel string, importName bool) string {
-	if t.isBuiltin {
-		return t.Name
-	} else if rel == t.PackagePath || (importName && rel == t.PackageName) {
-		return t.Name
-	} else {
-		return t.PackageName + "." + t.Name
-	}
-}
-
 func NewBuiltinType(name string) TypeName {
 	return TypeName{
 		Full:      name,
@@ -69,9 +58,8 @@ func NewBuiltinType(name string) TypeName {
 func NewTypeName(pkgPath string, name string) TypeName {
 	return TypeName{
 		PackagePath: pkgPath,
-		PackageName: filepath.Base(pkgPath),
-		Full:        pkgPath + "." + name,
 		Name:        name,
+		Full:        pkgPath + "." + name,
 	}
 }
 
@@ -95,13 +83,13 @@ func ParseTypeName(name string) (tn TypeName, err error) {
 	fullpkg, t := name[0:last], name[last+1:]
 	tn = TypeName{
 		PackagePath: fullpkg,
-		PackageName: filepath.Base(fullpkg),
 		Name:        t,
 		Full:        name,
 	}
 	return
 }
 
+// WAT?
 func ParseLocalName(name string, localPkg string) (tn TypeName, err error) {
 	last := strings.LastIndex(name, ".")
 	if last < 0 {
@@ -128,6 +116,19 @@ func (ns TypeNames) Sorted() TypeNames {
 type TypeMap map[TypeName]types.Type
 
 func (m TypeMap) SortedKeys() TypeNames {
+	names := make(TypeNames, len(m))
+	i := 0
+	for k := range m {
+		names[i] = k
+		i++
+	}
+	names.Sort()
+	return names
+}
+
+type ObjectMap map[TypeName]types.Object
+
+func (m ObjectMap) SortedKeys() TypeNames {
 	names := make(TypeNames, len(m))
 	i := 0
 	for k := range m {

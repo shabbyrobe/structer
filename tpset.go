@@ -77,7 +77,7 @@ func NewTypePackageSet(opts ...option) *TypePackageSet {
 		Kinds:           make(map[string]PackageKind),
 	}
 	tps.AllowHardTypesError = true
-	tps.TypesConfig.IgnoreFuncBodies = true
+	tps.TypesConfig.IgnoreFuncBodies = false
 	tps.TypesConfig.DisableUnusedImportCheck = true
 	tps.TypesConfig.Error = func(err error) {
 		wlog(tps.Log, LogTypeSet, LogTypesConfigError, err.Error())
@@ -122,6 +122,44 @@ func (t *TypePackageSet) FindImportPath(pkg string, typeName string) (path strin
 
 	err = fmt.Errorf("import path not found for pkg %s, type %s", pkg, typeName)
 	return
+}
+
+func (t *TypePackageSet) LocalPackageFromType(name TypeName) (string, error) {
+	return t.LocalPackage(name.PackagePath)
+}
+
+func (t *TypePackageSet) LocalPackage(packageName string) (string, error) {
+	p := t.TypePackages[packageName]
+	if p == nil {
+		return "", fmt.Errorf("package not found %s", packageName)
+	}
+	return p.Name(), nil
+}
+
+func (t *TypePackageSet) LocalImportName(name TypeName, relPkg string) (string, error) {
+	if name.IsBuiltin() {
+		return name.Name, nil
+	}
+
+	tloc, err := t.LocalPackage(name.PackagePath)
+	if err != nil {
+		return "", err
+	}
+	if tloc == "main" {
+		if name.PackagePath != relPkg {
+			return "", fmt.Errorf("Attempted to import main relative to package %q", relPkg)
+		}
+	}
+
+	rloc, err := t.LocalPackage(relPkg)
+	if err != nil {
+		return "", err
+	}
+	if tloc == rloc {
+		return name.Name, nil
+	} else {
+		return fmt.Sprintf("%s.%s", tloc, name.Name), nil
+	}
 }
 
 func (t *TypePackageSet) ExtractSource(name TypeName) ([]byte, error) {
@@ -198,9 +236,85 @@ func (t *TypePackageSet) ExtractConsts(name TypeName, includeUnexported bool) (*
 	return consts, nil
 }
 
+func (t *TypePackageSet) FilePackage(file string) (PackageKind, string, error) {
+	goSrcPath := filepath.Join(BuildContext.GOPATH, "src")
+
+	dir := filepath.Dir(file)
+
+	// FIXME: dir MUST be a child of GOPATH. Unfortunately, they didn't bother
+	// to provide a reasonable alternative, pointer, suggestion, anything, when
+	// they deprecated filepath.HasPrefix.
+
+	dirParts := splitPath(dir)
+
+	// Is it a vendor package?
+	j := len(dirParts) - 1
+	for ; j >= 0; j-- {
+		if dirParts[j] == "vendor" {
+			return VendorPackage, filepath.Join(dirParts[j+1:]...), nil
+		}
+	}
+
+	// Is it a SystemPackage?
+	goRootParts := splitPath(filepath.Join(BuildContext.GOROOT, "src"))
+	isSystem := len(goRootParts) > 0
+	if len(goRootParts) <= len(dirParts) {
+		// This check is grotesque. filepath.HasPrefix is deprecated, there's no
+		// other way to check if a path is a child of another I can see.
+		for i := 0; i < len(goRootParts); i++ {
+			s1, err := os.Stat(filepath.Join(goRootParts[:i+1]...))
+			if err != nil {
+				return "", "", err
+			}
+			s2, err := os.Stat(filepath.Join(dirParts[:i+1]...))
+			if err != nil {
+				return "", "", err
+			}
+			if !os.SameFile(s1, s2) {
+				isSystem = false
+				break
+			}
+		}
+	}
+	if isSystem {
+		return SystemPackage, filepath.Join(dirParts[len(goRootParts):]...), nil
+	}
+
+	// Is it a UserPackage?
+	goSrcParts := splitPath(goSrcPath)
+	isUser := len(goSrcPath) > 0
+	if len(goSrcParts) <= len(dirParts) {
+		for i := 0; i < len(goSrcParts); i++ {
+			s1, err := os.Stat(filepath.Join(goSrcParts[:i+1]...))
+			if err != nil {
+				return "", "", err
+			}
+			s2, err := os.Stat(filepath.Join(goSrcParts[:i+1]...))
+			if err != nil {
+				return "", "", err
+			}
+			if !os.SameFile(s1, s2) {
+				isUser = false
+				break
+			}
+		}
+	}
+
+	if isUser {
+		return UserPackage, filepath.Join(dirParts[len(goSrcParts):]...), nil
+	}
+
+	return NoPackage, "", nil
+}
+
 func (t *TypePackageSet) ResolvePath(path, srcDir string) (PackageKind, string, error) {
 	// Is it a VendorPackage?
 	goSrcPath := filepath.Join(BuildContext.GOPATH, "src")
+
+	// FIXME: srcDir MUST be a child of GOPATH. Unfortunately, they didn't bother
+	// to provide a reasonable alternative, pointer, suggestion, anything, when
+	// they deprecated filepath.HasPrefix.
+
 	cur := srcDir
 	for cur != goSrcPath {
 		vendorDir := filepath.Join(cur, "vendor")
@@ -234,11 +348,15 @@ func (t *TypePackageSet) ImportNamed(named *types.Named) (*types.Package, error)
 	return t.Import(tn.PackagePath)
 }
 
+// Import a package using the default GOPATH/src folder. See go/types.Importer.
 func (t *TypePackageSet) Import(importPath string) (*types.Package, error) {
 	srcPath := filepath.Join(BuildContext.GOPATH, "src", importPath)
 	return t.ImportFrom(importPath, srcPath, 0)
 }
 
+// ImportFrom returns the imported package for the given import path when
+// imported by a package file located in dir.
+// See go/types.ImporterFrom.
 func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.ImportMode) (pkg *types.Package, err error) {
 	var (
 		resolved     string
@@ -276,8 +394,9 @@ func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.Import
 		t.BuiltFiles[importPath] = buildPackage.GoFiles
 
 		info = types.Info{
-			Types: make(map[ast.Expr]types.TypeAndValue),
-			Defs:  make(map[*ast.Ident]types.Object),
+			Types:      make(map[ast.Expr]types.TypeAndValue),
+			Defs:       make(map[*ast.Ident]types.Object),
+			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 		}
 
 		if err = t.ASTPackages.Add(resolved, importPath); err != nil {

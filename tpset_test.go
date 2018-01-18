@@ -2,7 +2,9 @@ package structer
 
 import (
 	"go/types"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"testing"
 )
@@ -41,6 +43,98 @@ func TestTypePackageSetParseError(t *testing.T) {
 	}
 	if len(tpset.Objects) > 0 {
 		t.Errorf("expected no valid objects")
+	}
+}
+
+func TestTypePackageSetPackageLocalName(t *testing.T) {
+	tpset := NewTypePackageSet()
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/valid")
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/testmain")
+
+	{ // test valid type name from named package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/valid", "Valid")
+		ln, err := tpset.LocalPackageFromType(tn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "valid" {
+			t.Fatal()
+		}
+
+		ln, err = tpset.LocalPackage(tn.PackagePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "valid" {
+			t.Fatal()
+		}
+	}
+
+	{ // test valid type name from main package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/testmain", "Main")
+		ln, err := tpset.LocalPackageFromType(tn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "main" {
+			t.Fatal()
+		}
+
+		ln, err = tpset.LocalPackage(tn.PackagePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "main" {
+			t.Fatal()
+		}
+	}
+}
+
+func TestTypePackageSet(t *testing.T) {
+	tpset := NewTypePackageSet()
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/valid")
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/valid2")
+	_, _ = tpset.Import("github.com/shabbyrobe/structer/testpkg/testmain")
+
+	{ // import relative to the same package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/valid", "Valid")
+		ln, err := tpset.LocalImportName(tn, "github.com/shabbyrobe/structer/testpkg/valid")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "Valid" {
+			t.Fatal()
+		}
+	}
+
+	{ // import relative to different package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/valid", "Valid")
+		ln, err := tpset.LocalImportName(tn, "github.com/shabbyrobe/structer/testpkg/valid2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "valid.Valid" {
+			t.Fatal()
+		}
+	}
+
+	{ // import relative to main package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/valid", "Valid")
+		ln, err := tpset.LocalImportName(tn, "github.com/shabbyrobe/structer/testpkg/testmain")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln != "valid.Valid" {
+			t.Fatal()
+		}
+	}
+
+	{ // import main relative to package
+		tn := NewTypeName("github.com/shabbyrobe/structer/testpkg/testmain", "Main")
+		_, err := tpset.LocalImportName(tn, "github.com/shabbyrobe/structer/testpkg/valid")
+		if err == nil {
+			t.Fatal("expected error")
+		}
 	}
 }
 
@@ -229,6 +323,56 @@ func TestTypePackageSetInvalidField(t *testing.T) {
 	stct := obj.Type().Underlying().(*types.Struct)
 	if !IsInvalid(stct.Field(0).Type()) {
 		t.Fatal("Expected field 0 to be invalid")
+	}
+}
+
+func TestTypePackageSetFilePackage(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+
+	{ // user package
+		testFile := filepath.Join(dir, "testpkg", "valid", "valid.go")
+		tpset := NewTypePackageSet()
+		kind, pkg, err := tpset.FilePackage(testFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind != UserPackage {
+			t.Fatal(kind)
+		}
+		if pkg != "github.com/shabbyrobe/structer/testpkg/valid" {
+			t.Fatal(pkg)
+		}
+	}
+
+	{ // vendor package
+		testFile := filepath.Join(dir, "testpkg", "testvendor", "vendor", "vendored", "vendored.go")
+		tpset := NewTypePackageSet()
+		kind, pkg, err := tpset.FilePackage(testFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind != VendorPackage {
+			t.Fatal(kind)
+		}
+		if pkg != "vendored" {
+			t.Fatal(pkg)
+		}
+	}
+
+	{ // system package
+		testFile := filepath.Join(BuildContext.GOROOT, "src", "runtime", "panic.go")
+		tpset := NewTypePackageSet()
+		kind, pkg, err := tpset.FilePackage(testFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind != SystemPackage {
+			t.Fatal(kind)
+		}
+		if pkg != "runtime" {
+			t.Fatal(pkg)
+		}
 	}
 }
 

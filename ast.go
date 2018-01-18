@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"go/doc"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -26,10 +25,29 @@ func (a *ASTPosFinder) Visit(node ast.Node) (w ast.Visitor) {
 	return a
 }
 
+type ASTStackPosFinder struct {
+	Pos   token.Pos
+	Stack []ast.Node
+	Found bool
+}
+
+func (a *ASTStackPosFinder) Visit(node ast.Node) (w ast.Visitor) {
+	if !a.Found {
+		if node == nil {
+			a.Stack = a.Stack[:len(a.Stack)-1]
+		} else {
+			a.Stack = append(a.Stack, node)
+			if node.Pos() == a.Pos {
+				a.Found = true
+				return nil
+			}
+		}
+	}
+	return a
+}
+
 type ASTPackage struct {
 	AST *ast.Package
-
-	doc *doc.Package
 
 	CommentMap ast.CommentMap
 
@@ -75,6 +93,10 @@ type ASTPackageSet struct {
 	// https://stackoverflow.com/questions/19580688/go-parser-not-detecting-doc-comments-on-struct-type
 	//
 	GenDecls map[*ast.TypeSpec]*ast.GenDecl
+
+	Decls map[token.Pos]ast.Decl
+
+	Imported map[string]bool
 }
 
 func NewASTPackageSet() *ASTPackageSet {
@@ -84,6 +106,8 @@ func NewASTPackageSet() *ASTPackageSet {
 		Packages: make(map[string]*ASTPackage),
 		ParseDoc: true,
 		GenDecls: make(map[*ast.TypeSpec]*ast.GenDecl),
+		Decls:    make(map[token.Pos]ast.Decl),
+		Imported: make(map[string]bool),
 	}
 	return pkgs
 }
@@ -102,6 +126,29 @@ func (p *ASTPackageSet) FindNodeByPackagePathPos(pkgPath string, pos token.Pos) 
 	posFinder := &ASTPosFinder{Pos: pos}
 	ast.Walk(posFinder, dastFile)
 	return posFinder.Node
+}
+
+func (p *ASTPackageSet) ParentDecl(pkgPath string, pos token.Pos) ast.Node {
+	// FIXME: some of this might be helpful to simplify this crap:
+	// https://github.com/golang/example/tree/master/gotypes#getting-from-a-to-b
+
+	dast := p.Packages[pkgPath]
+	if dast == nil {
+		return nil
+	}
+	if p.Decls[pos] != nil {
+		return p.Decls[pos]
+	}
+
+	posFinder := &ASTStackPosFinder{Pos: pos}
+	ast.Walk(posFinder, dast.AST)
+
+	for j := len(posFinder.Stack) - 1; j >= 0; j-- {
+		if d, ok := p.Decls[posFinder.Stack[j].Pos()]; ok {
+			return d
+		}
+	}
+	return nil
 }
 
 func (p *ASTPackageSet) FindComment(pkgPath string, pos token.Pos) (docstr string, err error) {
@@ -137,7 +184,22 @@ func (p *ASTPackageSet) FindComment(pkgPath string, pos token.Pos) (docstr strin
 	return
 }
 
+// Add adds the package, found at source path "dir", to the ASTPackageSet.
+// GOPATH is not inferred automatically, nor is pkg appended to dir by
+// default.
+//
+// If "" is passed to dir, GOPATH/src + pkg is implied.
+//
 func (p *ASTPackageSet) Add(dir string, pkg string) error {
+	if dir == "" {
+		dir = filepath.Join(BuildContext.GOPATH, "src", pkg)
+	}
+
+	if p.Imported[dir] {
+		return nil
+	}
+	p.Imported[dir] = true
+
 	info, err := os.Stat(dir)
 	if err != nil {
 		return err
@@ -173,24 +235,6 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 		return ferr
 	}
 
-	// The left hand doesn't know what the right hand is doing.
-	// The documentation for go/doc.New() says "New computes the package
-	// documentation for the given package AST. New takes ownership of the AST
-	// pkg and may edit or overwrite it."
-	// Unfortunately, there's no way to clone an AST node. This is pretty half-assed.
-	// Go should either provide the facility to clone an AST node, or doc.New()
-	// should not take ownership. Then this horseshit would not be necessary.
-	var docPkgs map[string]*ast.Package
-	if p.ParseDoc {
-		docPkgs, err = parser.ParseDir(p.FileSet, dir, filter, parser.ParseComments)
-		if err != nil {
-			return err
-		}
-		if ferr != nil {
-			return ferr
-		}
-	}
-
 	// Some stdlib packages have a "main" with an ignore build
 	// tag in them as well as a regular package.
 	// FIXME: Now that we are using the build package elsewhere,
@@ -216,12 +260,11 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 			return fmt.Errorf("no packages found in %s", dir)
 		} else {
 			astPkg.AST = pkgs[pkey]
-			dp := docPkgs[pkey]
-			if dp != nil {
-				docPkg := doc.New(dp, dir, 0)
-				astPkg.doc = docPkg
-			}
 		}
+	}
+
+	if astPkg.AST == nil {
+		return fmt.Errorf("package %q found in %q", pkg, dir)
 	}
 
 	// *ast.Package indexes files by absolute filesystem path so we need
@@ -244,6 +287,12 @@ func (p *ASTPackageSet) Add(dir string, pkg string) error {
 		}
 
 		for _, decl := range astFile.Decls {
+			if _, ok := p.Decls[decl.Pos()]; ok {
+				panic("bug: decl already exists")
+			}
+
+			p.Decls[decl.Pos()] = decl
+
 			if gd, ok := decl.(*ast.GenDecl); ok {
 				for _, spec := range gd.Specs {
 					if ts, ok := spec.(*ast.TypeSpec); ok {
