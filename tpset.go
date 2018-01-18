@@ -294,7 +294,16 @@ func (t *TypePackageSet) ImportFrom(importPath, srcDir string, mode types.Import
 		for _, fs := range fileSets {
 			for _, file := range fs {
 				full := filepath.Join(resolved, file)
-				asts = append(asts, t.ASTPackages.Packages[importPath].AST.Files[full])
+
+				ap := t.ASTPackages.Packages[importPath]
+				if ap == nil {
+					return nil, fmt.Errorf("missing ASTPackage for %s", importPath)
+				}
+				af := ap.AST.Files[full]
+				if af == nil {
+					return nil, fmt.Errorf("missing AST File %s for import path %s", full, importPath)
+				}
+				asts = append(asts, af)
 			}
 		}
 
