@@ -316,6 +316,7 @@ func (t *TypePackageSet) ResolvePath(path, srcDir string) (PackageKind, string, 
 	// they deprecated filepath.HasPrefix.
 
 	cur := srcDir
+	last := cur
 	for cur != goSrcPath {
 		vendorDir := filepath.Join(cur, "vendor")
 		info, _ := os.Stat(vendorDir)
@@ -325,6 +326,10 @@ func (t *TypePackageSet) ResolvePath(path, srcDir string) (PackageKind, string, 
 			}
 		}
 		cur = filepath.Dir(cur)
+		if cur == last {
+			break
+		}
+		last = cur
 	}
 
 	// Is it a SystemPackage?
