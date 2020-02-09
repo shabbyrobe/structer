@@ -1,6 +1,13 @@
 Structer
 ========
 
+**Note**: This badly needed a lick of paint before Go Modules came onto the scene,
+and should now be considered obsolete/unmaintained. Having said that, if you depend
+on this and you run into trouble with it, please open an issue and I'll see if I
+can help.
+
+--
+
 Structer is a tool for dismantling struct definitions to try to ease the agony
 of code generation.
 
